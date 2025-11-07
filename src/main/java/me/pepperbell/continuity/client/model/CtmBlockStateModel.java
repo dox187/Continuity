@@ -1,22 +1,32 @@
 package me.pepperbell.continuity.client.model;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+
+import org.jetbrains.annotations.Nullable;
 
 import me.pepperbell.continuity.client.config.ContinuityConfig;
+import net.fabricmc.fabric.api.renderer.v1.Renderer;
+import net.fabricmc.fabric.api.renderer.v1.mesh.MutableMesh;
+import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView;
+import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
+import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockStateModel;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.model.BlockModelPart;
 import net.minecraft.client.render.model.BlockStateModel;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
+import net.minecraft.world.BlockRenderView;
 
-/**
- * BlockStateModel wrapper that adds Connected Textures Mod (CTM) support.
- * Replaces CtmBakedModel for Minecraft 1.21.10+
- * 
- * Processes block quads to apply connected texture patterns based on neighboring blocks.
- * 
- * @since 1.21.10 migration
- */
+@SuppressWarnings("deprecation")
 public class CtmBlockStateModel extends WrappedBlockStateModel {
+	private static final Predicate<Direction> NO_CULL = direction -> false;
+
 	private final BlockState defaultState;
 
 	public CtmBlockStateModel(BlockStateModel wrapped, BlockState defaultState) {
@@ -25,45 +35,89 @@ public class CtmBlockStateModel extends WrappedBlockStateModel {
 	}
 
 	@Override
-	public void addParts(Random random, List<BlockModelPart> parts) {
-		// Get parts from wrapped model
-		wrapped.addParts(random, parts);
-		
-		int originalSize = parts.size();
+	public void emitQuads(QuadEmitter emitter, BlockRenderView blockView, BlockPos pos, BlockState state, Random random, Predicate<@Nullable Direction> cullTest) {
+		BlockState renderState = Objects.requireNonNullElse(state, defaultState);
 
-		// Only process if CTM is enabled
-		if (!ContinuityConfig.INSTANCE.connectedTextures.get()) {
-			me.pepperbell.continuity.client.ContinuityClient.LOGGER.debug(
-				me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX + 
-				"CtmBlockStateModel.addParts() - CTM disabled in config");
+		if (!shouldApplyCtm()) {
+			emitWrapped(emitter, blockView, pos, renderState, random, cullTest);
 			return;
 		}
 
 		ModelObjectsContainer container = ModelObjectsContainer.get();
 		if (!container.featureStates.getConnectedTexturesState().isEnabled()) {
-			me.pepperbell.continuity.client.ContinuityClient.LOGGER.debug(
-				me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX + 
-				"CtmBlockStateModel.addParts() - CTM feature state disabled");
+			emitWrapped(emitter, blockView, pos, renderState, random, cullTest);
 			return;
 		}
 
-		// Wrap each part to add CTM processing
-		for (int i = 0; i < parts.size(); i++) {
-			parts.set(i, new CtmBlockModelPart(parts.get(i), defaultState));
+		Random geometryRandom = random.split();
+		Random processingRandom = random.split();
+		Supplier<Random> randomSupplier = new SplitRandomSupplier(processingRandom);
+
+		MutableMesh mesh = Renderer.get().mutableMesh();
+		QuadEmitter collectingEmitter = mesh.emitter();
+		emitWrapped(collectingEmitter, blockView, pos, renderState, geometryRandom, NO_CULL);
+
+		Function<Sprite, QuadProcessors.Slice> sliceFunc = QuadProcessors.getCache(renderState);
+
+		var transform = container.ctmQuadTransform;
+		transform.prepare(blockView, renderState, renderState, pos, randomSupplier, cullTest, sliceFunc);
+
+		try {
+			mesh.forEachMutable(mutableQuad -> processQuad(mutableQuad, emitter, transform));
+		} finally {
+			transform.reset();
+			mesh.clear();
 		}
-		
-		me.pepperbell.continuity.client.ContinuityClient.LOGGER.debug(
-			me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX + 
-			"CtmBlockStateModel.addParts() - Wrapped {} parts for block {}", 
-			originalSize, defaultState.getBlock());
+	}
+
+	@Override
+	public void addParts(Random random, List<BlockModelPart> parts) {
+		wrapped.addParts(random, parts);
 	}
 
 	public BlockState getDefaultState() {
 		return defaultState;
 	}
 
-	// Note: CTM processing requires world context (neighboring blocks)
-	// The old emitBlockQuads method received BlockRenderView, BlockState, BlockPos
-	// We need to figure out how to get this context in the new system
-	// Likely through ThreadLocal or Fabric API extensions
+	private boolean shouldApplyCtm() {
+		return ContinuityConfig.INSTANCE.connectedTextures.get();
+	}
+
+	private void processQuad(MutableQuadView quad, QuadEmitter outputEmitter, CtmBakedModel.CtmQuadTransform transform) {
+		boolean keep = transform.transform(quad);
+
+		if (keep) {
+			outputEmitter.copyFrom(quad);
+			outputEmitter.emit();
+		}
+
+		transform.processingContext.outputTo(outputEmitter);
+		transform.processingContext.reset();
+	}
+
+	private void emitWrapped(QuadEmitter emitter, BlockRenderView blockView, BlockPos pos, BlockState state, Random random, Predicate<@Nullable Direction> cullTest) {
+		if (wrapped instanceof FabricBlockStateModel fabric) {
+			fabric.emitQuads(emitter, blockView, pos, state, random, cullTest);
+			return;
+		}
+
+		List<BlockModelPart> parts = wrapped.getParts(random);
+		for (BlockModelPart part : parts) {
+			part.emitQuads(emitter, cullTest);
+		}
+	}
+
+	private static final class SplitRandomSupplier implements Supplier<Random> {
+		private final Random parent;
+
+		private SplitRandomSupplier(Random parent) {
+			this.parent = parent;
+		}
+
+		@Override
+		public Random get() {
+			return parent.split();
+		}
+	}
 }
+

@@ -38,6 +38,7 @@ import me.pepperbell.continuity.client.properties.overlay.RepeatOverlayCtmProper
 import me.pepperbell.continuity.client.properties.overlay.StandardOverlayCtmProperties;
 import me.pepperbell.continuity.client.resource.CustomBlockLayers;
 import me.pepperbell.continuity.client.resource.CTMResourceReloadListener;
+import me.pepperbell.continuity.client.resource.EmissiveTextureManager;
 import me.pepperbell.continuity.client.resource.ModelWrappingHandler;
 import me.pepperbell.continuity.client.util.RenderUtil;
 import me.pepperbell.continuity.client.util.biome.BiomeHolderManager;
@@ -67,6 +68,10 @@ public class ContinuityClient implements ClientModInitializer {
 		
 		// Register CTM resource reload listener (replaces BakedModelManagerMixin)
 		ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(CTMResourceReloadListener.INSTANCE);
+
+		// Register Emissive texture loader
+		EmissiveTextureManager emissiveManager = new EmissiveTextureManager();
+		ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(emissiveManager);
 
 		FabricLoader.getInstance().getModContainer(ID).ifPresent(container -> {
 			ResourceManagerHelper.registerBuiltinResourcePack(asId("default"), container, Text.translatable("resourcePack.continuity.default.name"), ResourcePackActivationType.NORMAL);
