@@ -77,7 +77,7 @@ public class CtmPropertiesLoader {
 						properties.load(stream);
 						load(properties, resourceId, pack, packPriority);
 					} catch (Exception e) {
-						ContinuityClient.LOGGER.error("Failed to load CTM properties from file '" + resourceId + "' in pack '" + pack.getId() + "'", e);
+						ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Failed to load CTM properties from file '" + resourceId + "' in pack '" + pack.getId() + "'", e);
 					}
 				}
 			});
@@ -90,7 +90,7 @@ public class CtmPropertiesLoader {
 		if (loader != null) {
 			load(loader, properties, resourceId, pack, packPriority, method);
 		} else {
-			ContinuityClient.LOGGER.error("Unknown 'method' value '" + method + "' in file '" + resourceId + "' in pack '" + pack.getId() + "'");
+			ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Unknown 'method' value '" + method + "' in file '" + resourceId + "' in pack '" + pack.getId() + "'");
 		}
 	}
 

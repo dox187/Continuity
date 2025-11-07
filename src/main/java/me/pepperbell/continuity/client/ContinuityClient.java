@@ -37,6 +37,7 @@ import me.pepperbell.continuity.client.properties.overlay.RandomOverlayCtmProper
 import me.pepperbell.continuity.client.properties.overlay.RepeatOverlayCtmProperties;
 import me.pepperbell.continuity.client.properties.overlay.StandardOverlayCtmProperties;
 import me.pepperbell.continuity.client.resource.CustomBlockLayers;
+import me.pepperbell.continuity.client.resource.CTMResourceReloadListener;
 import me.pepperbell.continuity.client.resource.ModelWrappingHandler;
 import me.pepperbell.continuity.client.util.RenderUtil;
 import me.pepperbell.continuity.client.util.biome.BiomeHolderManager;
@@ -45,6 +46,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.resource.ResourceType;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
@@ -52,6 +54,7 @@ public class ContinuityClient implements ClientModInitializer {
 	public static final String ID = "continuity";
 	public static final String NAME = "Continuity";
 	public static final Logger LOGGER = LoggerFactory.getLogger(NAME);
+	public static final String LOG_PREFIX = "[Continuity] ";
 
 	@Override
 	public void onInitializeClient() {
@@ -61,6 +64,9 @@ public class ContinuityClient implements ClientModInitializer {
 		ModelWrappingHandler.init();
 		RenderUtil.ReloadListener.init();
 		CustomBlockLayers.ReloadListener.init();
+		
+		// Register CTM resource reload listener (replaces BakedModelManagerMixin)
+		ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(CTMResourceReloadListener.INSTANCE);
 
 		FabricLoader.getInstance().getModContainer(ID).ifPresent(container -> {
 			ResourceManagerHelper.registerBuiltinResourcePack(asId("default"), container, Text.translatable("resourcePack.continuity.default.name"), ResourcePackActivationType.NORMAL);

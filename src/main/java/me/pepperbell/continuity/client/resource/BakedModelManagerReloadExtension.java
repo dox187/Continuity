@@ -10,8 +10,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.jetbrains.annotations.Nullable;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import me.pepperbell.continuity.client.mixinterface.AtlasManagerAccess;
 import me.pepperbell.continuity.client.model.QuadProcessors;
-import net.minecraft.client.render.model.SpriteAtlasManager;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.texture.AtlasManager;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.resource.ResourceManager;
@@ -39,16 +41,20 @@ public class BakedModelManagerReloadExtension implements BakedModelManagerBakeCo
 	}
 
 	@Override
-	public void beforeBake(Map<Identifier, SpriteAtlasManager.AtlasPreparation> preparations) {
+	public void beforeBake(Map<Identifier, AtlasManager.Metadata> preparations) {
 		CtmPropertiesLoader.LoadingResult result = ctmLoadingResultFuture.join();
 
+		// Access AtlasManager from MinecraftClient to get sprites
+		AtlasManager atlasManager = ((AtlasManagerAccess) MinecraftClient.getInstance().getBakedModelManager()).continuity$getAtlasManager();
+		
+		// Get the block atlas texture
+		// In 1.21.10, atlas IDs changed from "minecraft:textures/atlas/blocks.png" to "minecraft:blocks"
+		var blockAtlas = atlasManager.getAtlasTexture(Identifier.of("minecraft", "blocks"));
+		
 		List<QuadProcessors.ProcessorHolder> processorHolders = result.createProcessorHolders(spriteId -> {
-			SpriteAtlasManager.AtlasPreparation preparation = preparations.get(spriteId.getAtlasId());
-			Sprite sprite = preparation.getSprite(spriteId.getTextureId());
-			if (sprite != null) {
-				return sprite;
-			}
-			return preparation.getMissingSprite();
+			// Get sprite from the atlas texture directly using the texture ID
+			// SpriteIdentifier contains both atlas ID and texture ID - we only need the texture ID
+			return blockAtlas.getSprite(spriteId.getTextureId());
 		});
 
 		this.processorHolders = processorHolders;
@@ -81,7 +87,8 @@ public class BakedModelManagerReloadExtension implements BakedModelManagerBakeCo
 		@Override
 		@Nullable
 		public EmissiveControl getEmissiveControl(Identifier atlasId) {
-			if (atlasId.equals(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)) {
+			// In 1.21.10, atlas IDs changed from "minecraft:textures/atlas/blocks.png" to "minecraft:blocks"
+			if (atlasId.equals(Identifier.of("minecraft", "blocks"))) {
 				return blockAtlasEmissiveControl;
 			}
 			return null;

@@ -31,7 +31,7 @@ public class RepeatCtmProperties extends BaseCtmProperties {
 	protected void parseWidth() {
 		String widthStr = properties.getProperty("width");
 		if (widthStr == null) {
-			ContinuityClient.LOGGER.error("No 'width' value provided in file '" + resourceId + "' in pack '" + packId + "'");
+			ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "No 'width' value provided in file '" + resourceId + "' in pack '" + packId + "'");
 			valid = false;
 			return;
 		}
@@ -45,14 +45,14 @@ public class RepeatCtmProperties extends BaseCtmProperties {
 		} catch (NumberFormatException e) {
 			//
 		}
-		ContinuityClient.LOGGER.error("Invalid 'width' value '" + widthStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+		ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Invalid 'width' value '" + widthStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
 		valid = false;
 	}
 
 	protected void parseHeight() {
 		String heightStr = properties.getProperty("height");
 		if (heightStr == null) {
-			ContinuityClient.LOGGER.error("No 'height' value provided in file '" + resourceId + "' in pack '" + packId + "'");
+			ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "No 'height' value provided in file '" + resourceId + "' in pack '" + packId + "'");
 			valid = false;
 			return;
 		}
@@ -66,7 +66,7 @@ public class RepeatCtmProperties extends BaseCtmProperties {
 		} catch (NumberFormatException e) {
 			//
 		}
-		ContinuityClient.LOGGER.error("Invalid 'height' value '" + heightStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+		ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Invalid 'height' value '" + heightStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
 		valid = false;
 	}
 
@@ -107,7 +107,7 @@ public class RepeatCtmProperties extends BaseCtmProperties {
 			if (amount == targetAmount) {
 				return true;
 			}
-			ContinuityClient.LOGGER.error("Method '" + properties.getMethod() + "' requires exactly " + targetAmount + " tiles but " + amount + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
+			ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Method '" + properties.getMethod() + "' requires exactly " + targetAmount + " tiles but " + amount + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
 			return false;
 		}
 	}

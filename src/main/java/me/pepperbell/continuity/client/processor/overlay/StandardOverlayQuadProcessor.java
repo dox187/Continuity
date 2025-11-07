@@ -20,11 +20,10 @@ import me.pepperbell.continuity.client.util.QuadUtil;
 import me.pepperbell.continuity.client.util.RenderUtil;
 import me.pepperbell.continuity.client.util.SpriteCalculator;
 import me.pepperbell.continuity.client.util.TextureUtil;
-import net.fabricmc.fabric.api.renderer.v1.material.BlendMode;
-import net.fabricmc.fabric.api.renderer.v1.material.RenderMaterial;
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.minecraft.block.BlockState;
+import net.minecraft.client.render.BlockRenderLayer;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -46,9 +45,9 @@ public class StandardOverlayQuadProcessor extends AbstractQuadProcessor {
 	protected int tintIndex;
 	@Nullable
 	protected BlockState tintBlock;
-	protected RenderMaterial material;
+	protected BlockRenderLayer renderLayer;
 
-	public StandardOverlayQuadProcessor(Sprite[] sprites, ProcessingPredicate processingPredicate, @Nullable Set<Identifier> matchTilesSet, @Nullable Predicate<BlockState> matchBlocksPredicate, @Nullable Set<Identifier> connectTilesSet, @Nullable Predicate<BlockState> connectBlocksPredicate, ConnectionPredicate connectionPredicate, int tintIndex, @Nullable BlockState tintBlock, BlendMode layer) {
+	public StandardOverlayQuadProcessor(Sprite[] sprites, ProcessingPredicate processingPredicate, @Nullable Set<Identifier> matchTilesSet, @Nullable Predicate<BlockState> matchBlocksPredicate, @Nullable Set<Identifier> connectTilesSet, @Nullable Predicate<BlockState> connectBlocksPredicate, ConnectionPredicate connectionPredicate, int tintIndex, @Nullable BlockState tintBlock, BlockRenderLayer renderLayer) {
 		super(sprites, processingPredicate);
 		this.matchTilesSet = matchTilesSet;
 		this.matchBlocksPredicate = matchBlocksPredicate;
@@ -58,7 +57,7 @@ public class StandardOverlayQuadProcessor extends AbstractQuadProcessor {
 
 		this.tintIndex = tintIndex;
 		this.tintBlock = tintBlock;
-		material = RenderUtil.findOverlayMaterial(layer, this.tintBlock);
+		this.renderLayer = renderLayer;
 
 		// Turn all missing sprites into null, since it is more efficient to check for a null sprite than a missing
 		// sprite. There is no functional difference between missing and null sprites for this processor.
@@ -78,7 +77,7 @@ public class StandardOverlayQuadProcessor extends AbstractQuadProcessor {
 			QuadEmitter emitter = context.getExtraQuadEmitter();
 			int tintColor = RenderUtil.getTintColor(tintBlock, blockView, pos, tintIndex);
 			for (int i = 0; i < collector.spriteAmount; i++) {
-				QuadUtil.emitOverlayQuad(emitter, lightFace, collector.sprites[i], tintColor, material);
+				QuadUtil.emitOverlayQuad(emitter, lightFace, collector.sprites[i], tintColor, renderLayer);
 			}
 			collector.clear();
 		}

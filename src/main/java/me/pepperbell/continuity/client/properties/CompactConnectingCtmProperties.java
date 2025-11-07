@@ -49,12 +49,12 @@ public class CompactConnectingCtmProperties extends OrientedConnectingCtmPropert
 				try {
 					value = Integer.parseInt(valueStr);
 				} catch (NumberFormatException e) {
-					ContinuityClient.LOGGER.warn("Invalid '" + key + "' value '" + valueStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + key + "' value '" + valueStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
 					continue;
 				}
 				// TODO: deduplicate code
 				if (value < 0) {
-					ContinuityClient.LOGGER.warn("Invalid '" + key + "' value '" + valueStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + key + "' value '" + valueStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
 					continue;
 				}
 

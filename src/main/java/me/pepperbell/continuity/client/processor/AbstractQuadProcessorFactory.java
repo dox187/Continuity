@@ -19,7 +19,7 @@ public abstract class AbstractQuadProcessorFactory<T extends BaseCtmProperties> 
 		int max = provided;
 
 		if (provided > textureAmount) {
-			ContinuityClient.LOGGER.warn("Method '" + properties.getMethod() + "' requires " + textureAmount + " tiles but " + provided + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
+			ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Method '" + properties.getMethod() + "' requires " + textureAmount + " tiles but " + provided + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
 			max = textureAmount;
 		}
 
@@ -40,7 +40,7 @@ public abstract class AbstractQuadProcessorFactory<T extends BaseCtmProperties> 
 		}
 
 		if (provided < textureAmount) {
-			ContinuityClient.LOGGER.error("Method '" + properties.getMethod() + "' requires " + textureAmount + " tiles but only " + provided + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
+			ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Method '" + properties.getMethod() + "' requires " + textureAmount + " tiles but only " + provided + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
 			for (int i = provided; i < textureAmount; i++) {
 				sprites[i] = missingSprite;
 			}

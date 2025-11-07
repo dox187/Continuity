@@ -33,7 +33,7 @@ public final class EmissiveSuffixLoader {
 				properties.load(inputStream);
 				emissiveSuffix = properties.getProperty("suffix.emissive");
 			} catch (IOException e) {
-				ContinuityClient.LOGGER.error("Failed to load emissive suffix from file '" + LOCATION + "'", e);
+				ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Failed to load emissive suffix from file '" + LOCATION + "'", e);
 			}
 		}
 	}

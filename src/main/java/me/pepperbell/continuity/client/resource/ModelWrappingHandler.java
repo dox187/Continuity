@@ -1,112 +1,81 @@
 package me.pepperbell.continuity.client.resource;
 
-import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.Nullable;
+import java.util.Map;
 
-import com.google.common.collect.ImmutableMap;
-
-import me.pepperbell.continuity.client.model.CtmBakedModel;
-import me.pepperbell.continuity.client.model.EmissiveBakedModel;
-import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
-import net.fabricmc.fabric.api.client.model.loading.v1.ModelModifier;
-import net.minecraft.block.Block;
+import me.pepperbell.continuity.client.mixin.BlockModelsAccessor;
+import me.pepperbell.continuity.client.model.CtmBlockStateModel;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.block.BlockModels;
-import net.minecraft.client.render.model.BakedModel;
-import net.minecraft.client.render.model.MissingModel;
-import net.minecraft.client.util.ModelIdentifier;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.render.model.BlockStateModel;
 
+/**
+ * Handles wrapping BlockStateModel instances with CTM support.
+ */
 public class ModelWrappingHandler {
-	@Nullable
-	private static volatile ModelWrappingHandler instance;
-
-	private final boolean wrapCtm;
-	private final boolean wrapEmissive;
-	private final ImmutableMap<ModelIdentifier, BlockState> blockStateModelIds;
-
-	private ModelWrappingHandler(boolean wrapCtm, boolean wrapEmissive) {
-		this.wrapCtm = wrapCtm;
-		this.wrapEmissive = wrapEmissive;
-		blockStateModelIds = createBlockStateModelIdMap();
+	private static boolean wrapCtm = false;
+	private static boolean wrapEmissive = false;
+	
+	public static void init() {
+		// Reserved for future initialization
 	}
-
-	@Nullable
-	public static ModelWrappingHandler getInstance() {
-		return instance;
-	}
-
+	
 	public static void setInstance(boolean wrapCtm, boolean wrapEmissive) {
+		ModelWrappingHandler.wrapCtm = wrapCtm;
+		ModelWrappingHandler.wrapEmissive = wrapEmissive;
+	}
+	
+	public static void resetInstance() {
+		wrapCtm = false;
+		wrapEmissive = false;
+	}
+	
+	/**
+	 * Wraps block state models with CTM and/or emissive support.
+	 */
+	public static void wrapModels(BlockModels blockModels) {
 		if (!wrapCtm && !wrapEmissive) {
+			me.pepperbell.continuity.client.ContinuityClient.LOGGER.debug(me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX + 
+				"Not wrapping models - wrapCtm={}, wrapEmissive={}", wrapCtm, wrapEmissive);
 			return;
 		}
-		instance = new ModelWrappingHandler(wrapCtm, wrapEmissive);
-	}
-
-	public static void resetInstance() {
-		instance = null;
-	}
-
-	private static ImmutableMap<ModelIdentifier, BlockState> createBlockStateModelIdMap() {
-		ImmutableMap.Builder<ModelIdentifier, BlockState> builder = ImmutableMap.builder();
-		// Match code of BakedModelManager#toStateMap
-		for (Block block : Registries.BLOCK) {
-			Identifier blockId = block.getRegistryEntry().registryKey().getValue();
-			for (BlockState state : block.getStateManager().getStates()) {
-				ModelIdentifier modelId = BlockModels.getModelId(blockId, state);
-				builder.put(modelId, state);
+		
+		// Access the internal models map through the accessor
+		Map<BlockState, BlockStateModel> models = ((BlockModelsAccessor) blockModels).getModels();
+		
+		me.pepperbell.continuity.client.ContinuityClient.LOGGER.info(me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX + 
+			"Starting model wrapping: {} models in map, wrapCtm={}, wrapEmissive={}", 
+			models.size(), wrapCtm, wrapEmissive);
+		
+		int wrappedCount = 0;
+		int skippedCount = 0;
+		
+		for (Map.Entry<BlockState, BlockStateModel> entry : models.entrySet()) {
+			BlockState state = entry.getKey();
+			BlockStateModel model = entry.getValue();
+			BlockStateModel wrappedModel = model;
+			
+			// Skip if already wrapped
+			if (model instanceof CtmBlockStateModel) {
+				skippedCount++;
+				continue;
 			}
-		}
-		return builder.build();
-	}
-
-	public BakedModel wrap(BakedModel model, Identifier id) {
-		if (!id.equals(MissingModel.ID)) {
-			if (wrapEmissive) {
-				model = new EmissiveBakedModel(model);
+			
+			// Wrap with CTM support if enabled
+			if (wrapCtm) {
+				wrappedModel = new CtmBlockStateModel(wrappedModel, state);
+				wrappedCount++;
 			}
+			
+			// TODO: Wrap with emissive support if enabled
+			// if (wrapEmissive) {
+			//     wrappedModel = new EmissiveBlockStateModel(wrappedModel, state);
+			// }
+			
+			entry.setValue(wrappedModel);
 		}
-		return model;
-	}
-
-	public BakedModel wrapBlock(BakedModel model, ModelIdentifier topLevelId) {
-		if (wrapCtm) {
-			BlockState state = blockStateModelIds.get(topLevelId);
-			if (state != null) {
-				model = new CtmBakedModel(model, state);
-			}
-		}
-		if (wrapEmissive) {
-			model = new EmissiveBakedModel(model);
-		}
-		return model;
-	}
-
-	public BakedModel ensureWrapped(BakedModel model) {
-		if (wrapEmissive && !(model instanceof EmissiveBakedModel)) {
-			return new EmissiveBakedModel(model);
-		}
-		return model;
-	}
-
-	@ApiStatus.Internal
-	public static void init() {
-		ModelLoadingPlugin.register(pluginCtx -> {
-			pluginCtx.modifyModelAfterBake().register(ModelModifier.WRAP_LAST_PHASE, (model, ctx) -> {
-				ModelWrappingHandler wrappingHandler = getInstance();
-				if (wrappingHandler != null) {
-					return wrappingHandler.wrap(model, ctx.id());
-				}
-				return model;
-			});
-			pluginCtx.modifyBlockModelAfterBake().register(ModelModifier.WRAP_LAST_PHASE, (model, ctx) -> {
-				ModelWrappingHandler wrappingHandler = getInstance();
-				if (wrappingHandler != null) {
-					return wrappingHandler.wrapBlock(model, ctx.id());
-				}
-				return model;
-			});
-		});
+		
+		me.pepperbell.continuity.client.ContinuityClient.LOGGER.info(me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX + 
+			"Wrapped {} block state models with CTM support ({} skipped, {} total)", 
+			wrappedCount, skippedCount, models.size());
 	}
 }

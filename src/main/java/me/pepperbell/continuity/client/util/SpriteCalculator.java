@@ -9,8 +9,9 @@ import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.block.BlockModels;
-import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.client.render.model.BakedQuad;
+import net.minecraft.client.render.model.BlockModelPart;
+import net.minecraft.client.render.model.BlockStateModel;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
@@ -30,26 +31,34 @@ public final class SpriteCalculator {
 	}
 
 	public static Sprite calculateSprite(BlockState state, Direction face, Supplier<Random> randomSupplier) {
-		BakedModel model = MODELS.getModel(state);
+		BlockStateModel model = MODELS.getModel(state);
 		try {
-			List<BakedQuad> quads = model.getQuads(state, face, randomSupplier.get());
-			if (!quads.isEmpty()) {
-				return quads.get(0).getSprite();
+			// Get parts from the model
+			List<BlockModelPart> parts = model.getParts(randomSupplier.get());
+			for (BlockModelPart part : parts) {
+				// Get quads for the specific face
+				List<BakedQuad> quads = part.getQuads(face);
+				if (!quads.isEmpty()) {
+					return quads.get(0).sprite();
+				}
 			}
-			quads = model.getQuads(state, null, randomSupplier.get());
-			if (!quads.isEmpty()) {
-				int amount = quads.size();
-				for (int i = 0; i < amount; i++) {
-					BakedQuad quad = quads.get(i);
-					if (quad.getFace() == face) {
-						return quad.getSprite();
+			// Try getting quads from all faces
+			for (BlockModelPart part : parts) {
+				List<BakedQuad> quads = part.getQuads(null);
+				if (!quads.isEmpty()) {
+					int amount = quads.size();
+					for (int i = 0; i < amount; i++) {
+						BakedQuad quad = quads.get(i);
+						if (quad.face() == face) {
+							return quad.sprite();
+						}
 					}
 				}
 			}
 		} catch (Exception e) {
 			//
 		}
-		return model.getParticleSprite();
+		return model.particleSprite();
 	}
 
 	public static void clearCache() {

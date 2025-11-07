@@ -34,7 +34,7 @@ public final class BiomeHolder {
 		if (biomeRegistry.containsId(id)) {
 			biome = biomeRegistry.get(id);
 		} else {
-			ContinuityClient.LOGGER.warn("Unknown biome '" + this.id + "'");
+			ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown biome '" + this.id + "'");
 		}
 	}
 

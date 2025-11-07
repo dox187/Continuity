@@ -31,7 +31,7 @@ public interface TileAmountValidator<T extends BaseCtmProperties> {
 			if (amount == targetAmount) {
 				return true;
 			}
-			ContinuityClient.LOGGER.error("Method '" + properties.getMethod() + "' requires exactly " + targetAmount + " tiles but " + amount + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
+			ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Method '" + properties.getMethod() + "' requires exactly " + targetAmount + " tiles but " + amount + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
 			return false;
 		}
 	}
@@ -48,7 +48,7 @@ public interface TileAmountValidator<T extends BaseCtmProperties> {
 			if (amount >= targetAmount) {
 				return true;
 			}
-			ContinuityClient.LOGGER.error("Method '" + properties.getMethod() + "' requires at least " + targetAmount + " tiles but only " + amount + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
+			ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Method '" + properties.getMethod() + "' requires at least " + targetAmount + " tiles but only " + amount + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
 			return false;
 		}
 	}

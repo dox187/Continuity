@@ -69,7 +69,7 @@ public final class CustomBlockLayers {
 				properties.load(inputStream);
 				reload(properties, LOCATION, resource.getPackId());
 			} catch (IOException e) {
-				ContinuityClient.LOGGER.error("Failed to load custom block layers from file '" + LOCATION + "' from pack '" + resource.getPackId() + "'", e);
+				ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Failed to load custom block layers from file '" + LOCATION + "' from pack '" + resource.getPackId() + "'", e);
 			}
 		}
 	}
@@ -113,7 +113,9 @@ public final class CustomBlockLayers {
 		SOLID(RenderLayer.getSolid()),
 		CUTOUT(RenderLayer.getCutout()),
 		CUTOUT_MIPPED(RenderLayer.getCutoutMipped()),
-		TRANSLUCENT(RenderLayer.getTranslucent());
+		// TODO: RenderLayer.getTranslucent() method removed in 1.21.10
+		// Need to find replacement - using CUTOUT as placeholder
+		TRANSLUCENT(RenderLayer.getCutout());
 
 		public static final BlockLayer[] VALUES = values();
 

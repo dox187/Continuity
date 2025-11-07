@@ -31,6 +31,10 @@ repositories {
 		name 'Shedaniel'
 		url 'https://maven.shedaniel.me'
 	}
+	maven {
+		name 'ModMaven'
+		url 'https://modmaven.dev/'
+	}
 }
 
 dependencies {

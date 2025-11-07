@@ -625,17 +625,17 @@ public class CompactCtmQuadProcessor extends AbstractQuadProcessor {
 						if (value < provided) {
 							replacementSprites[key] = textureGetter.apply(spriteIds.get(value));
 						} else {
-							ContinuityClient.LOGGER.warn("Cannot replace tile " + key + " with tile " + value + " as only " + provided + " tiles were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
+							ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Cannot replace tile " + key + " with tile " + value + " as only " + provided + " tiles were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
 						}
 					} else {
-						ContinuityClient.LOGGER.warn("Cannot replace tile " + key + " as method '" + properties.getMethod() + "' only supports " + replacementTextureAmount + " replacement tiles in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
+						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Cannot replace tile " + key + " as method '" + properties.getMethod() + "' only supports " + replacementTextureAmount + " replacement tiles in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
 					}
 				}
 			}
 
 			if (provided > textureAmount) {
 				if (replacementSprites == null) {
-					ContinuityClient.LOGGER.warn("Method '" + properties.getMethod() + "' requires " + textureAmount + " tiles but " + provided + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
+					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Method '" + properties.getMethod() + "' requires " + textureAmount + " tiles but " + provided + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
 				}
 				max = textureAmount;
 			}
@@ -657,7 +657,7 @@ public class CompactCtmQuadProcessor extends AbstractQuadProcessor {
 			}
 
 			if (provided < textureAmount) {
-				ContinuityClient.LOGGER.error("Method '" + properties.getMethod() + "' requires at least " + textureAmount + " tiles but only " + provided + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
+				ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Method '" + properties.getMethod() + "' requires at least " + textureAmount + " tiles but only " + provided + " were provided in file '" + properties.getResourceId() + "' in pack '" + properties.getPackId() + "'");
 				for (int i = provided; i < textureAmount; i++) {
 					sprites[i] = missingSprite;
 				}

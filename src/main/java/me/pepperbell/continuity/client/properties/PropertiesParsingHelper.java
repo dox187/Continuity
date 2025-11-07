@@ -96,10 +96,10 @@ public final class PropertiesParsingHelper {
 					try {
 						set.add(Identifier.of(namespace, path));
 					} catch (InvalidIdentifierException e) {
-						ContinuityClient.LOGGER.warn("Invalid '" + propertyKey + "' element '" + matchTileStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'", e);
+						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + propertyKey + "' element '" + matchTileStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'", e);
 					}
 				} else {
-					ContinuityClient.LOGGER.warn("Invalid '" + propertyKey + "' element '" + matchTileStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + propertyKey + "' element '" + matchTileStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
 				}
 			}
 
@@ -141,7 +141,7 @@ public final class PropertiesParsingHelper {
 							startIndex = 2;
 						}
 					} catch (InvalidIdentifierException e) {
-						ContinuityClient.LOGGER.warn("Invalid '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'", e);
+						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'", e);
 						continue;
 					}
 
@@ -169,20 +169,20 @@ public final class PropertiesParsingHelper {
 														if (optionalValue.isPresent()) {
 															valueSet.add(optionalValue.get());
 														} else {
-															ContinuityClient.LOGGER.warn("Invalid block property value '" + propertyValueStr + "' for property '" + propertyName + "' for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+															ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid block property value '" + propertyValueStr + "' for property '" + propertyName + "' for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
 															continue Block;
 														}
 													}
 												} else {
-													ContinuityClient.LOGGER.warn("Invalid block property definition for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+													ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid block property definition for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
 													continue Block;
 												}
 											} else {
-												ContinuityClient.LOGGER.warn("Unknown block property '" + propertyName + "' for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+												ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown block property '" + propertyName + "' for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
 												continue Block;
 											}
 										} else {
-											ContinuityClient.LOGGER.warn("Invalid block property definition for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+											ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid block property definition for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
 											continue Block;
 										}
 									}
@@ -209,10 +209,10 @@ public final class PropertiesParsingHelper {
 							}
 						}
 					} else {
-						ContinuityClient.LOGGER.warn("Unknown block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
 					}
 				} else {
-					ContinuityClient.LOGGER.warn("Invalid '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
 				}
 			}
 
@@ -270,7 +270,7 @@ public final class PropertiesParsingHelper {
 		try {
 			return Symmetry.valueOf(symmetryStr.trim().toUpperCase(Locale.ROOT));
 		} catch (IllegalArgumentException e) {
-			ContinuityClient.LOGGER.warn("Unknown '" + propertyKey + "' value '" + symmetryStr + "' in file '" + fileLocation + "' in pack '" + packId + "'");
+			ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown '" + propertyKey + "' value '" + symmetryStr + "' in file '" + fileLocation + "' in pack '" + packId + "'");
 		}
 		return null;
 	}
@@ -285,7 +285,7 @@ public final class PropertiesParsingHelper {
 		try {
 			return OrientationMode.valueOf(orientationModeStr.trim().toUpperCase(Locale.ROOT));
 		} catch (IllegalArgumentException e) {
-			ContinuityClient.LOGGER.warn("Unknown '" + propertyKey + "' value '" + orientationModeStr + "' in file '" + fileLocation + "' in pack '" + packId + "'");
+			ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown '" + propertyKey + "' value '" + orientationModeStr + "' in file '" + fileLocation + "' in pack '" + packId + "'");
 		}
 		return null;
 	}

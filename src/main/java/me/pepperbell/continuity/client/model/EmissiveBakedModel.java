@@ -1,7 +1,6 @@
 package me.pepperbell.continuity.client.model;
 
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -9,217 +8,145 @@ import me.pepperbell.continuity.api.client.EmissiveSpriteApi;
 import me.pepperbell.continuity.client.config.ContinuityConfig;
 import me.pepperbell.continuity.client.util.QuadUtil;
 import me.pepperbell.continuity.client.util.RenderUtil;
-import net.fabricmc.fabric.api.renderer.v1.material.BlendMode;
-import net.fabricmc.fabric.api.renderer.v1.material.MaterialFinder;
-import net.fabricmc.fabric.api.renderer.v1.material.RenderMaterial;
-import net.fabricmc.fabric.api.renderer.v1.mesh.MutableMesh;
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadTransform;
 import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.block.BlockState;
+import net.minecraft.client.render.BlockRenderLayer;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.RenderLayers;
-import net.minecraft.client.render.model.BakedModel;
-import net.minecraft.client.render.model.WrapperBakedModel;
 import net.minecraft.client.texture.Sprite;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.random.Random;
-import net.minecraft.world.BlockRenderView;
 
-public class EmissiveBakedModel extends WrapperBakedModel {
-	protected static final RenderMaterial[] EMISSIVE_MATERIALS;
-	protected static final RenderMaterial DEFAULT_EMISSIVE_MATERIAL;
-	protected static final RenderMaterial CUTOUT_MIPPED_EMISSIVE_MATERIAL;
+/**
+ * DEPRECATED: BakedModel API was removed in Minecraft 1.21.10.
+ * Use EmissiveBlockStateModel instead.
+ * 
+ * This class is kept as a stub to provide access to inner transform classes
+ * which are still referenced by ModelObjectsContainer.
+ * 
+ * @deprecated Use {@link EmissiveBlockStateModel} instead
+ */
+@Deprecated
+public class EmissiveBakedModel {
 
-	static {
-		BlendMode[] blendModes = BlendMode.values();
-		EMISSIVE_MATERIALS = new RenderMaterial[blendModes.length];
-		MaterialFinder finder = RenderUtil.getMaterialFinder();
-		for (BlendMode blendMode : blendModes) {
-			EMISSIVE_MATERIALS[blendMode.ordinal()] = finder.emissive(true).disableDiffuse(true).ambientOcclusion(TriState.FALSE).blendMode(blendMode).find();
-		}
+/**
+ * Helper method to apply emissive properties directly to QuadEmitter.
+ * Replaces the old RenderMaterial array approach with direct property setters.
+ */
+protected static void applyEmissiveProperties(QuadEmitter emitter, BlockRenderLayer renderLayer) {
+emitter
+.renderLayer(renderLayer)
+.emissive(true)
+.diffuseShade(false)
+.ambientOcclusion(TriState.FALSE);
+}
 
-		DEFAULT_EMISSIVE_MATERIAL = EMISSIVE_MATERIALS[BlendMode.DEFAULT.ordinal()];
-		CUTOUT_MIPPED_EMISSIVE_MATERIAL = EMISSIVE_MATERIALS[BlendMode.CUTOUT_MIPPED.ordinal()];
-	}
+protected static class EmissiveBlockQuadTransform implements QuadTransform {
+protected QuadEmitter emitter;
+protected BlockState state;
+protected Predicate<@Nullable Direction> cullTest;
 
-	public EmissiveBakedModel(BakedModel wrapped) {
-		super(wrapped);
-	}
+protected boolean active;
+protected boolean calculateDefaultLayer;
+protected boolean isDefaultLayerSolid;
 
-	@Override
-	public void emitBlockQuads(QuadEmitter emitter, BlockRenderView blockView, BlockState state, BlockPos pos, Supplier<Random> randomSupplier, Predicate<@Nullable Direction> cullTest) {
-		if (!ContinuityConfig.INSTANCE.emissiveTextures.get()) {
-			super.emitBlockQuads(emitter, blockView, state, pos, randomSupplier, cullTest);
-			return;
-		}
+@Override
+public boolean transform(MutableQuadView quad) {
+if (cullTest.test(quad.cullFace())) {
+return false;
+}
 
-		ModelObjectsContainer container = ModelObjectsContainer.get();
-		if (!container.featureStates.getEmissiveTexturesState().isEnabled()) {
-			super.emitBlockQuads(emitter, blockView, state, pos, randomSupplier, cullTest);
-			return;
-		}
+Sprite sprite = RenderUtil.getSpriteFinder().find(quad);
+Sprite emissiveSprite = EmissiveSpriteApi.get().getEmissiveSprite(sprite);
+if (emissiveSprite != null) {
+emitter.copyFrom(quad);
 
-		EmissiveBlockQuadTransform quadTransform = container.emissiveBlockQuadTransform;
-		if (quadTransform.isActive()) {
-			super.emitBlockQuads(emitter, blockView, state, pos, randomSupplier, cullTest);
-			return;
-		}
+// Determine the appropriate render layer for emissive rendering
+BlockRenderLayer renderLayer = quad.renderLayer();
+if (renderLayer == null) {
+// Default layer based on block state
+if (calculateDefaultLayer) {
+isDefaultLayerSolid = RenderLayers.getBlockLayer(state) == BlockRenderLayer.SOLID;
+calculateDefaultLayer = false;
+}
 
-		MutableMesh mutableMesh = container.mutableMesh;
-		quadTransform.prepare(mutableMesh.emitter(), state, cullTest);
+if (isDefaultLayerSolid) {
+renderLayer = BlockRenderLayer.CUTOUT_MIPPED;
+} else {
+// Use CUTOUT_MIPPED as default for emissive
+renderLayer = BlockRenderLayer.CUTOUT_MIPPED;
+}
+} else if (renderLayer == BlockRenderLayer.SOLID) {
+// Solid blocks should use CUTOUT_MIPPED for emissive overlay
+renderLayer = BlockRenderLayer.CUTOUT_MIPPED;
+}
 
-		emitter.pushTransform(quadTransform);
-		super.emitBlockQuads(emitter, blockView, state, pos, randomSupplier, cullTest);
-		emitter.popTransform();
+// Apply emissive properties directly
+applyEmissiveProperties(emitter, renderLayer);
+QuadUtil.interpolate(emitter, sprite, emissiveSprite);
+emitter.emit();
+}
+return true;
+}
 
-		mutableMesh.outputTo(emitter);
-		mutableMesh.clear();
-		quadTransform.reset();
-	}
+public boolean isActive() {
+return active;
+}
 
-	@Override
-	public void emitItemQuads(QuadEmitter emitter, Supplier<Random> randomSupplier) {
-		if (!ContinuityConfig.INSTANCE.emissiveTextures.get()) {
-			super.emitItemQuads(emitter, randomSupplier);
-			return;
-		}
+public void prepare(QuadEmitter emitter, BlockState state, Predicate<@Nullable Direction> cullTest) {
+this.emitter = emitter;
+this.state = state;
+this.cullTest = cullTest;
 
-		ModelObjectsContainer container = ModelObjectsContainer.get();
-		if (!container.featureStates.getEmissiveTexturesState().isEnabled()) {
-			super.emitItemQuads(emitter, randomSupplier);
-			return;
-		}
+active = true;
+calculateDefaultLayer = true;
+isDefaultLayerSolid = false;
+}
 
-		EmissiveItemQuadTransform quadTransform = container.emissiveItemQuadTransform;
-		if (quadTransform.isActive()) {
-			super.emitItemQuads(emitter, randomSupplier);
-			return;
-		}
+public void reset() {
+emitter = null;
+state = null;
+cullTest = null;
 
-		MutableMesh mutableMesh = container.mutableMesh;
-		quadTransform.prepare(mutableMesh.emitter());
+active = false;
+}
+}
 
-		emitter.pushTransform(quadTransform);
-		super.emitItemQuads(emitter, randomSupplier);
-		emitter.popTransform();
+protected static class EmissiveItemQuadTransform implements QuadTransform {
+protected QuadEmitter emitter;
 
-		mutableMesh.outputTo(emitter);
-		mutableMesh.clear();
-		quadTransform.reset();
-	}
+protected boolean active;
 
-	@Override
-	public boolean isVanillaAdapter() {
-		if (!ContinuityConfig.INSTANCE.emissiveTextures.get()) {
-			return super.isVanillaAdapter();
-		}
-		return false;
-	}
+@Override
+public boolean transform(MutableQuadView quad) {
+Sprite sprite = RenderUtil.getSpriteFinder().find(quad);
+Sprite emissiveSprite = EmissiveSpriteApi.get().getEmissiveSprite(sprite);
+if (emissiveSprite != null) {
+emitter.copyFrom(quad);
+// For items, use CUTOUT_MIPPED as the default emissive layer
+applyEmissiveProperties(emitter, BlockRenderLayer.CUTOUT_MIPPED);
+QuadUtil.interpolate(emitter, sprite, emissiveSprite);
+emitter.emit();
+}
+return true;
+}
 
-	protected static class EmissiveBlockQuadTransform implements QuadTransform {
-		protected QuadEmitter emitter;
-		protected BlockState state;
-		protected Predicate<@Nullable Direction> cullTest;
+public boolean isActive() {
+return active;
+}
 
-		protected boolean active;
-		protected boolean calculateDefaultLayer;
-		protected boolean isDefaultLayerSolid;
+public void prepare(QuadEmitter emitter) {
+this.emitter = emitter;
 
-		@Override
-		public boolean transform(MutableQuadView quad) {
-			if (cullTest.test(quad.cullFace())) {
-				return false;
-			}
+active = true;
+}
 
-			Sprite sprite = RenderUtil.getSpriteFinder().find(quad);
-			Sprite emissiveSprite = EmissiveSpriteApi.get().getEmissiveSprite(sprite);
-			if (emissiveSprite != null) {
-				emitter.copyFrom(quad);
+public void reset() {
+emitter = null;
 
-				BlendMode blendMode = quad.material().blendMode();
-				RenderMaterial emissiveMaterial;
-				if (blendMode == BlendMode.DEFAULT) {
-					if (calculateDefaultLayer) {
-						isDefaultLayerSolid = RenderLayers.getBlockLayer(state) == RenderLayer.getSolid();
-						calculateDefaultLayer = false;
-					}
-
-					if (isDefaultLayerSolid) {
-						emissiveMaterial = CUTOUT_MIPPED_EMISSIVE_MATERIAL;
-					} else {
-						emissiveMaterial = DEFAULT_EMISSIVE_MATERIAL;
-					}
-				} else if (blendMode == BlendMode.SOLID) {
-					emissiveMaterial = CUTOUT_MIPPED_EMISSIVE_MATERIAL;
-				} else {
-					emissiveMaterial = EMISSIVE_MATERIALS[blendMode.ordinal()];
-				}
-
-				emitter.material(emissiveMaterial);
-				QuadUtil.interpolate(emitter, sprite, emissiveSprite);
-				emitter.emit();
-			}
-			return true;
-		}
-
-		public boolean isActive() {
-			return active;
-		}
-
-		public void prepare(QuadEmitter emitter, BlockState state, Predicate<@Nullable Direction> cullTest) {
-			this.emitter = emitter;
-			this.state = state;
-			this.cullTest = cullTest;
-
-			active = true;
-			calculateDefaultLayer = true;
-			isDefaultLayerSolid = false;
-		}
-
-		public void reset() {
-			emitter = null;
-			state = null;
-			cullTest = null;
-
-			active = false;
-		}
-	}
-
-	protected static class EmissiveItemQuadTransform implements QuadTransform {
-		protected QuadEmitter emitter;
-
-		protected boolean active;
-
-		@Override
-		public boolean transform(MutableQuadView quad) {
-			Sprite sprite = RenderUtil.getSpriteFinder().find(quad);
-			Sprite emissiveSprite = EmissiveSpriteApi.get().getEmissiveSprite(sprite);
-			if (emissiveSprite != null) {
-				emitter.copyFrom(quad);
-				emitter.material(DEFAULT_EMISSIVE_MATERIAL);
-				QuadUtil.interpolate(emitter, sprite, emissiveSprite);
-				emitter.emit();
-			}
-			return true;
-		}
-
-		public boolean isActive() {
-			return active;
-		}
-
-		public void prepare(QuadEmitter emitter) {
-			this.emitter = emitter;
-
-			active = true;
-		}
-
-		public void reset() {
-			emitter = null;
-
-			active = false;
-		}
-	}
+active = false;
+}
+}
 }

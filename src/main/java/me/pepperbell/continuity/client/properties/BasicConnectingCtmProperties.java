@@ -55,7 +55,7 @@ public class BasicConnectingCtmProperties extends BaseCtmProperties {
 
 	protected void validateConnect() {
 		if (connectionPredicate == null) {
-			ContinuityClient.LOGGER.error("No valid connection type provided in file '" + resourceId + "' in pack '" + packId + "'");
+			ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "No valid connection type provided in file '" + resourceId + "' in pack '" + packId + "'");
 			valid = false;
 		}
 	}

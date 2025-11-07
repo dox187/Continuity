@@ -1,9 +1,9 @@
 package me.pepperbell.continuity.client.util;
 
-import net.fabricmc.fabric.api.renderer.v1.material.RenderMaterial;
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadView;
+import net.minecraft.client.render.BlockRenderLayer;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
@@ -25,7 +25,10 @@ public final class QuadUtil {
 	}
 
 	public static void assignLerpedUVs(MutableQuadView quad, Sprite sprite) {
-		float delta = sprite.getAnimationFrameDelta();
+		// TODO: Animation frame delta API changed in 1.21.10
+		// getAnimationFrameDelta() method no longer exists
+		// Using 0.0f as default (no interpolation) for now
+		float delta = 0.0f;
 		float centerU = (sprite.getMinU() + sprite.getMaxU()) * 0.5f;
 		float centerV = (sprite.getMinV() + sprite.getMaxV()) * 0.5f;
 		float lerpedMinU = MathHelper.lerp(delta, sprite.getMinU(), centerU);
@@ -38,11 +41,11 @@ public final class QuadUtil {
 		quad.uv(3, lerpedMaxU, lerpedMinV);
 	}
 
-	public static void emitOverlayQuad(QuadEmitter emitter, Direction face, Sprite sprite, int color, RenderMaterial material) {
+	public static void emitOverlayQuad(QuadEmitter emitter, Direction face, Sprite sprite, int color, BlockRenderLayer renderLayer) {
 		emitter.square(face, 0, 0, 1, 1, 0);
 		emitter.color(color, color, color, color);
 		assignLerpedUVs(emitter, sprite);
-		emitter.material(material);
+		emitter.renderLayer(renderLayer);
 		emitter.emit();
 	}
 
