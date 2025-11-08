@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import me.pepperbell.continuity.client.ContinuityClient;
 import me.pepperbell.continuity.client.mixinterface.SpriteExtension;
 import me.pepperbell.continuity.client.resource.EmissiveSpriteRegistry;
+import me.pepperbell.continuity.client.resource.ModelWrappingCoordinator;
 import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.Identifier;
@@ -103,6 +104,10 @@ abstract class SpriteAtlasTextureMixin {
             ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
                     + "SpriteAtlasTextureMixin: Linked {} emissive sprites, {} failed mappings",
                     linkedCount, failedCount);
+
+            // Notify the coordinator that blocks atlas loading is complete
+            // This will trigger model wrapping if BlockModels are ready
+            ModelWrappingCoordinator.onAtlasLoadingComplete();
         } catch (Exception e) {
             ContinuityClient.LOGGER
                     .error(ContinuityClient.LOG_PREFIX + "Error linking emissive sprites", e);

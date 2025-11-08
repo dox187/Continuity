@@ -5,7 +5,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import me.pepperbell.continuity.client.resource.ModelWrappingHandler;
+import me.pepperbell.continuity.client.resource.ModelWrappingCoordinator;
 import me.pepperbell.continuity.client.util.SpriteCalculator;
 import net.minecraft.client.render.block.BlockModels;
 
@@ -38,6 +38,7 @@ abstract class BlockModelsMixin {
 
 	@Inject(method = "setModels(Ljava/util/Map;)V", at = @At("TAIL"))
 	private void continuity$onTailSetModels(CallbackInfo ci) {
-		ModelWrappingHandler.wrapModels((BlockModels) (Object) this);
+		// Store the BlockModels instance for delayed wrapping after atlas loading
+		ModelWrappingCoordinator.setBlockModels((BlockModels) (Object) this);
 	}
 }

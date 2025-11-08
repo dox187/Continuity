@@ -65,17 +65,24 @@ public class ContinuityClient implements ClientModInitializer {
 		ModelWrappingHandler.init();
 		RenderUtil.ReloadListener.init();
 		CustomBlockLayers.ReloadListener.init();
-		
+
 		// Register CTM resource reload listener (replaces BakedModelManagerMixin)
-		ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(CTMResourceReloadListener.INSTANCE);
+		ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES)
+				.registerReloadListener(CTMResourceReloadListener.INSTANCE);
 
 		// Register Emissive texture loader
 		EmissiveTextureManager emissiveManager = new EmissiveTextureManager();
-		ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(emissiveManager);
+		ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES)
+				.registerReloadListener(emissiveManager);
 
 		FabricLoader.getInstance().getModContainer(ID).ifPresent(container -> {
-			ResourceManagerHelper.registerBuiltinResourcePack(asId("default"), container, Text.translatable("resourcePack.continuity.default.name"), ResourcePackActivationType.NORMAL);
-			ResourceManagerHelper.registerBuiltinResourcePack(asId("glass_pane_culling_fix"), container, Text.translatable("resourcePack.continuity.glass_pane_culling_fix.name"), ResourcePackActivationType.NORMAL);
+			ResourceManagerHelper.registerBuiltinResourcePack(asId("default"), container,
+					Text.translatable("resourcePack.continuity.default.name"),
+					ResourcePackActivationType.DEFAULT_ENABLED);
+			ResourceManagerHelper.registerBuiltinResourcePack(asId("glass_pane_culling_fix"),
+					container,
+					Text.translatable("resourcePack.continuity.glass_pane_culling_fix.name"),
+					ResourcePackActivationType.NORMAL);
 		});
 
 		CtmLoaderRegistry registry = CtmLoaderRegistry.get();
@@ -83,150 +90,107 @@ public class ContinuityClient implements ClientModInitializer {
 
 		// Standard simple methods
 
-		loader = createLoader(
-				OrientedConnectingCtmProperties::new,
+		loader = createLoader(OrientedConnectingCtmProperties::new,
 				new TileAmountValidator.AtLeast<>(47),
-				new SimpleQuadProcessor.Factory<>(new CtmSpriteProvider.Factory())
-		);
+				new SimpleQuadProcessor.Factory<>(new CtmSpriteProvider.Factory()));
 		registry.registerLoader("ctm", loader);
 		registry.registerLoader("glass", loader);
 
-		loader = createLoader(
-				CompactConnectingCtmProperties::new,
-				new TileAmountValidator.AtLeast<>(5),
-				new CompactCtmQuadProcessor.Factory(),
-				false
-		);
+		loader = createLoader(CompactConnectingCtmProperties::new,
+				new TileAmountValidator.AtLeast<>(5), new CompactCtmQuadProcessor.Factory(), false);
 		registry.registerLoader("ctm_compact", loader);
 
-		loader = createLoader(
-				OrientedConnectingCtmProperties::new,
+		loader = createLoader(OrientedConnectingCtmProperties::new,
 				new TileAmountValidator.Exactly<>(4),
-				new SimpleQuadProcessor.Factory<>(new HorizontalSpriteProvider.Factory())
-		);
+				new SimpleQuadProcessor.Factory<>(new HorizontalSpriteProvider.Factory()));
 		registry.registerLoader("horizontal", loader);
 		registry.registerLoader("bookshelf", loader);
 
-		loader = createLoader(
-				OrientedConnectingCtmProperties::new,
+		loader = createLoader(OrientedConnectingCtmProperties::new,
 				new TileAmountValidator.Exactly<>(4),
-				new SimpleQuadProcessor.Factory<>(new VerticalSpriteProvider.Factory())
-		);
+				new SimpleQuadProcessor.Factory<>(new VerticalSpriteProvider.Factory()));
 		registry.registerLoader("vertical", loader);
 
-		loader = createLoader(
-				OrientedConnectingCtmProperties::new,
+		loader = createLoader(OrientedConnectingCtmProperties::new,
 				new TileAmountValidator.Exactly<>(7),
-				new SimpleQuadProcessor.Factory<>(new HorizontalVerticalSpriteProvider.Factory())
-		);
+				new SimpleQuadProcessor.Factory<>(new HorizontalVerticalSpriteProvider.Factory()));
 		registry.registerLoader("horizontal+vertical", loader);
 		registry.registerLoader("h+v", loader);
 
-		loader = createLoader(
-				OrientedConnectingCtmProperties::new,
+		loader = createLoader(OrientedConnectingCtmProperties::new,
 				new TileAmountValidator.Exactly<>(7),
-				new SimpleQuadProcessor.Factory<>(new VerticalHorizontalSpriteProvider.Factory())
-		);
+				new SimpleQuadProcessor.Factory<>(new VerticalHorizontalSpriteProvider.Factory()));
 		registry.registerLoader("vertical+horizontal", loader);
 		registry.registerLoader("v+h", loader);
 
-		loader = createLoader(
-				ConnectingCtmProperties::new,
-				new TileAmountValidator.Exactly<>(1),
-				new TopQuadProcessor.Factory()
-		);
+		loader = createLoader(ConnectingCtmProperties::new, new TileAmountValidator.Exactly<>(1),
+				new TopQuadProcessor.Factory());
 		registry.registerLoader("top", loader);
 
-		loader = createLoader(
-				RandomCtmProperties::new,
-				new SimpleQuadProcessor.Factory<>(new RandomSpriteProvider.Factory())
-		);
+		loader = createLoader(RandomCtmProperties::new,
+				new SimpleQuadProcessor.Factory<>(new RandomSpriteProvider.Factory()));
 		registry.registerLoader("random", loader);
 
-		loader = createLoader(
-				RepeatCtmProperties::new,
-				new RepeatCtmProperties.Validator<>(),
-				new SimpleQuadProcessor.Factory<>(new RepeatSpriteProvider.Factory())
-		);
+		loader = createLoader(RepeatCtmProperties::new, new RepeatCtmProperties.Validator<>(),
+				new SimpleQuadProcessor.Factory<>(new RepeatSpriteProvider.Factory()));
 		registry.registerLoader("repeat", loader);
 
-		loader = createLoader(
-				BaseCtmProperties::new,
-				new TileAmountValidator.Exactly<>(1),
-				new SimpleQuadProcessor.Factory<>(new FixedSpriteProvider.Factory())
-		);
+		loader = createLoader(BaseCtmProperties::new, new TileAmountValidator.Exactly<>(1),
+				new SimpleQuadProcessor.Factory<>(new FixedSpriteProvider.Factory()));
 		registry.registerLoader("fixed", loader);
 
 		// Standard overlay methods
 
-		loader = createLoader(
-				StandardOverlayCtmProperties::new,
-				new TileAmountValidator.AtLeast<>(17),
-				new StandardOverlayQuadProcessor.Factory()
-		);
+		loader = createLoader(StandardOverlayCtmProperties::new,
+				new TileAmountValidator.AtLeast<>(17), new StandardOverlayQuadProcessor.Factory());
 		registry.registerLoader("overlay", loader);
 
-		loader = createLoader(
-				OrientedConnectingOverlayCtmProperties::new,
+		loader = createLoader(OrientedConnectingOverlayCtmProperties::new,
 				new TileAmountValidator.AtLeast<>(47),
-				new SimpleOverlayQuadProcessor.Factory<>(new CtmSpriteProvider.Factory())
-		);
+				new SimpleOverlayQuadProcessor.Factory<>(new CtmSpriteProvider.Factory()));
 		registry.registerLoader("overlay_ctm", loader);
 
-		loader = createLoader(
-				RandomOverlayCtmProperties::new,
-				new SimpleOverlayQuadProcessor.Factory<>(new RandomSpriteProvider.Factory())
-		);
+		loader = createLoader(RandomOverlayCtmProperties::new,
+				new SimpleOverlayQuadProcessor.Factory<>(new RandomSpriteProvider.Factory()));
 		registry.registerLoader("overlay_random", loader);
 
-		loader = createLoader(
-				RepeatOverlayCtmProperties::new,
+		loader = createLoader(RepeatOverlayCtmProperties::new,
 				new RepeatCtmProperties.Validator<>(),
-				new SimpleOverlayQuadProcessor.Factory<>(new RepeatSpriteProvider.Factory())
-		);
+				new SimpleOverlayQuadProcessor.Factory<>(new RepeatSpriteProvider.Factory()));
 		registry.registerLoader("overlay_repeat", loader);
 
-		loader = createLoader(
-				BaseOverlayCtmProperties::new,
-				new TileAmountValidator.Exactly<>(1),
-				new SimpleOverlayQuadProcessor.Factory<>(new FixedSpriteProvider.Factory())
-		);
+		loader = createLoader(BaseOverlayCtmProperties::new, new TileAmountValidator.Exactly<>(1),
+				new SimpleOverlayQuadProcessor.Factory<>(new FixedSpriteProvider.Factory()));
 		registry.registerLoader("overlay_fixed", loader);
 
 		// Custom methods
 
-		loader = createCustomLoader(
-				OrientedConnectingOverlayCtmProperties::new,
+		loader = createCustomLoader(OrientedConnectingOverlayCtmProperties::new,
 				new TileAmountValidator.Exactly<>(4),
-				new SimpleOverlayQuadProcessor.Factory<>(new HorizontalSpriteProvider.Factory())
-		);
+				new SimpleOverlayQuadProcessor.Factory<>(new HorizontalSpriteProvider.Factory()));
 		registry.registerLoader("overlay_horizontal", loader);
 
-		loader = createCustomLoader(
-				OrientedConnectingOverlayCtmProperties::new,
+		loader = createCustomLoader(OrientedConnectingOverlayCtmProperties::new,
 				new TileAmountValidator.Exactly<>(4),
-				new SimpleOverlayQuadProcessor.Factory<>(new VerticalSpriteProvider.Factory())
-		);
+				new SimpleOverlayQuadProcessor.Factory<>(new VerticalSpriteProvider.Factory()));
 		registry.registerLoader("overlay_vertical", loader);
 
-		loader = createCustomLoader(
-				OrientedConnectingOverlayCtmProperties::new,
-				new TileAmountValidator.Exactly<>(7),
-				new SimpleOverlayQuadProcessor.Factory<>(new HorizontalVerticalSpriteProvider.Factory())
-		);
+		loader = createCustomLoader(OrientedConnectingOverlayCtmProperties::new,
+				new TileAmountValidator.Exactly<>(7), new SimpleOverlayQuadProcessor.Factory<>(
+						new HorizontalVerticalSpriteProvider.Factory()));
 		registry.registerLoader("overlay_horizontal+vertical", loader);
 		registry.registerLoader("overlay_h+v", loader);
 
-		loader = createCustomLoader(
-				OrientedConnectingOverlayCtmProperties::new,
-				new TileAmountValidator.Exactly<>(7),
-				new SimpleOverlayQuadProcessor.Factory<>(new VerticalHorizontalSpriteProvider.Factory())
-		);
+		loader = createCustomLoader(OrientedConnectingOverlayCtmProperties::new,
+				new TileAmountValidator.Exactly<>(7), new SimpleOverlayQuadProcessor.Factory<>(
+						new VerticalHorizontalSpriteProvider.Factory()));
 		registry.registerLoader("overlay_vertical+horizontal", loader);
 		registry.registerLoader("overlay_v+h", loader);
 	}
 
-	private static <T extends CtmProperties> CtmLoader<T> createLoader(CtmProperties.Factory<T> propertiesFactory, QuadProcessor.Factory<T> processorFactory, CachingPredicates.Factory<T> predicatesFactory) {
+	private static <T extends CtmProperties> CtmLoader<T> createLoader(
+			CtmProperties.Factory<T> propertiesFactory, QuadProcessor.Factory<T> processorFactory,
+			CachingPredicates.Factory<T> predicatesFactory) {
 		return new CtmLoader<>() {
 			@Override
 			public CtmProperties.Factory<T> getPropertiesFactory() {
@@ -245,36 +209,57 @@ public class ContinuityClient implements ClientModInitializer {
 		};
 	}
 
-	private static <T extends BaseCtmProperties> CtmLoader<T> createLoader(CtmProperties.Factory<T> propertiesFactory, TileAmountValidator<T> validator, QuadProcessor.Factory<T> processorFactory, boolean isValidForMultipass) {
-		return createLoader(wrapWithOptifineOnlyCheck(TileAmountValidator.wrapFactory(BaseCtmProperties.wrapFactory(propertiesFactory), validator)), processorFactory, new BaseCachingPredicates.Factory<>(isValidForMultipass));
+	private static <T extends BaseCtmProperties> CtmLoader<T> createLoader(
+			CtmProperties.Factory<T> propertiesFactory, TileAmountValidator<T> validator,
+			QuadProcessor.Factory<T> processorFactory, boolean isValidForMultipass) {
+		return createLoader(
+				wrapWithOptifineOnlyCheck(TileAmountValidator
+						.wrapFactory(BaseCtmProperties.wrapFactory(propertiesFactory), validator)),
+				processorFactory, new BaseCachingPredicates.Factory<>(isValidForMultipass));
 	}
 
-	private static <T extends BaseCtmProperties> CtmLoader<T> createLoader(CtmProperties.Factory<T> propertiesFactory, TileAmountValidator<T> validator, QuadProcessor.Factory<T> processorFactory) {
+	private static <T extends BaseCtmProperties> CtmLoader<T> createLoader(
+			CtmProperties.Factory<T> propertiesFactory, TileAmountValidator<T> validator,
+			QuadProcessor.Factory<T> processorFactory) {
 		return createLoader(propertiesFactory, validator, processorFactory, true);
 	}
 
-	private static <T extends BaseCtmProperties> CtmLoader<T> createLoader(CtmProperties.Factory<T> propertiesFactory, QuadProcessor.Factory<T> processorFactory, boolean isValidForMultipass) {
-		return createLoader(wrapWithOptifineOnlyCheck(BaseCtmProperties.wrapFactory(propertiesFactory)), processorFactory, new BaseCachingPredicates.Factory<>(isValidForMultipass));
+	private static <T extends BaseCtmProperties> CtmLoader<T> createLoader(
+			CtmProperties.Factory<T> propertiesFactory, QuadProcessor.Factory<T> processorFactory,
+			boolean isValidForMultipass) {
+		return createLoader(
+				wrapWithOptifineOnlyCheck(BaseCtmProperties.wrapFactory(propertiesFactory)),
+				processorFactory, new BaseCachingPredicates.Factory<>(isValidForMultipass));
 	}
 
-	private static <T extends BaseCtmProperties> CtmLoader<T> createLoader(CtmProperties.Factory<T> propertiesFactory, QuadProcessor.Factory<T> processorFactory) {
+	private static <T extends BaseCtmProperties> CtmLoader<T> createLoader(
+			CtmProperties.Factory<T> propertiesFactory, QuadProcessor.Factory<T> processorFactory) {
 		return createLoader(propertiesFactory, processorFactory, true);
 	}
 
-	private static <T extends BaseCtmProperties> CtmLoader<T> createCustomLoader(CtmProperties.Factory<T> propertiesFactory, TileAmountValidator<T> validator, QuadProcessor.Factory<T> processorFactory, boolean isValidForMultipass) {
-		return createLoader(TileAmountValidator.wrapFactory(BaseCtmProperties.wrapFactory(propertiesFactory), validator), processorFactory, new BaseCachingPredicates.Factory<>(isValidForMultipass));
+	private static <T extends BaseCtmProperties> CtmLoader<T> createCustomLoader(
+			CtmProperties.Factory<T> propertiesFactory, TileAmountValidator<T> validator,
+			QuadProcessor.Factory<T> processorFactory, boolean isValidForMultipass) {
+		return createLoader(
+				TileAmountValidator.wrapFactory(BaseCtmProperties.wrapFactory(propertiesFactory),
+						validator),
+				processorFactory, new BaseCachingPredicates.Factory<>(isValidForMultipass));
 	}
 
-	private static <T extends BaseCtmProperties> CtmLoader<T> createCustomLoader(CtmProperties.Factory<T> propertiesFactory, TileAmountValidator<T> validator, QuadProcessor.Factory<T> processorFactory) {
+	private static <T extends BaseCtmProperties> CtmLoader<T> createCustomLoader(
+			CtmProperties.Factory<T> propertiesFactory, TileAmountValidator<T> validator,
+			QuadProcessor.Factory<T> processorFactory) {
 		return createCustomLoader(propertiesFactory, validator, processorFactory, true);
 	}
 
-	private static <T extends CtmProperties> CtmProperties.Factory<T> wrapWithOptifineOnlyCheck(CtmProperties.Factory<T> factory) {
+	private static <T extends CtmProperties> CtmProperties.Factory<T> wrapWithOptifineOnlyCheck(
+			CtmProperties.Factory<T> factory) {
 		return (properties, resourceId, pack, packPriority, resourceManager, method) -> {
 			if (PropertiesParsingHelper.parseOptifineOnly(properties, resourceId)) {
 				return null;
 			}
-			return factory.createProperties(properties, resourceId, pack, packPriority, resourceManager, method);
+			return factory.createProperties(properties, resourceId, pack, packPriority,
+					resourceManager, method);
 		};
 	}
 

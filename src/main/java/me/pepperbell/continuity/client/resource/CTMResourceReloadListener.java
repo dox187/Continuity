@@ -6,6 +6,7 @@ import java.util.List;
 import me.pepperbell.continuity.client.ContinuityClient;
 import me.pepperbell.continuity.client.mixinterface.AtlasManagerAccess;
 import me.pepperbell.continuity.client.model.QuadProcessors;
+import me.pepperbell.continuity.client.resource.ModelWrappingCoordinator;
 import net.fabricmc.fabric.api.resource.ResourceReloadListenerKeys;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.client.MinecraftClient;
@@ -36,6 +37,9 @@ public class CTMResourceReloadListener implements SimpleSynchronousResourceReloa
 
 	@Override
 	public void reload(ResourceManager manager) {
+		// Reset the model wrapping coordinator for the new resource reload
+		ModelWrappingCoordinator.reset();
+
 		try {
 			// Load CTM properties
 			CtmPropertiesLoader.LoadingResult result =
