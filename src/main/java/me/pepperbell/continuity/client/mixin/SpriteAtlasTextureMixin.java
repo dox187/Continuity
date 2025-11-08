@@ -36,10 +36,14 @@ abstract class SpriteAtlasTextureMixin {
             return;
         }
 
-        // Only process if there are emissive sprites registered
+        // *** CRITICAL FIX: Always notify coordinator that atlas loading is complete ***
+        // This must happen regardless of emissive sprites to ensure CTM wrapping works
+        ModelWrappingCoordinator.onAtlasLoadingComplete();
+
+        // Only process emissive linking if there are emissive sprites registered
         if (!EmissiveSpriteRegistry.hasEmissives()) {
             ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
-                    + "SpriteAtlasTextureMixin: No emissive sprites in registry");
+                    + "SpriteAtlasTextureMixin: No emissive sprites in registry, but atlas loading complete");
             return;
         }
 
@@ -105,9 +109,6 @@ abstract class SpriteAtlasTextureMixin {
                     + "SpriteAtlasTextureMixin: Linked {} emissive sprites, {} failed mappings",
                     linkedCount, failedCount);
 
-            // Notify the coordinator that blocks atlas loading is complete
-            // This will trigger model wrapping if BlockModels are ready
-            ModelWrappingCoordinator.onAtlasLoadingComplete();
         } catch (Exception e) {
             ContinuityClient.LOGGER
                     .error(ContinuityClient.LOG_PREFIX + "Error linking emissive sprites", e);
