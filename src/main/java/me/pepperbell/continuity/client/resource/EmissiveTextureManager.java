@@ -12,8 +12,8 @@ import net.minecraft.util.Identifier;
 /**
  * Handles the discovery and registration of emissive sprites.
  * 
- * In 1.21.10, emissive sprites are registered via AtlasLoaderMixin during atlas loading.
- * This manager caches the emissive sprite mapping for later use by renderers.
+ * In 1.21.10, emissive sprites are registered via AtlasLoaderMixin during atlas loading. This
+ * manager caches the emissive sprite mapping for later use by renderers.
  */
 public class EmissiveTextureManager implements SimpleSynchronousResourceReloadListener {
 
@@ -27,27 +27,56 @@ public class EmissiveTextureManager implements SimpleSynchronousResourceReloadLi
     @Override
     public void reload(ResourceManager manager) {
         emissiveMapping.clear();
-        
-        // Get emissive mappings from the context if available
+
+        // Try to get emissive mappings from global registry (set during atlas loading)
+        Map<Identifier, Identifier> globalMapping = EmissiveSpriteRegistry.getEmissiveMapping();
+        if (globalMapping != null && !globalMapping.isEmpty()) {
+            emissiveMapping.putAll(globalMapping);
+            ContinuityClient.LOGGER.info(
+                    ContinuityClient.LOG_PREFIX
+                            + "Loaded {} emissive sprite mappings from global registry",
+                    globalMapping.size());
+            return;
+        }
+
+        // Try AtlasLoaderLoadContext (set during atlas loading)
+        AtlasLoaderLoadContext atlasContext = AtlasLoaderLoadContext.THREAD_LOCAL.get();
+        if (atlasContext != null) {
+            Map<Identifier, Identifier> emissiveIdMap = atlasContext.getEmissiveIdMap();
+            if (emissiveIdMap != null && !emissiveIdMap.isEmpty()) {
+                emissiveMapping.putAll(emissiveIdMap);
+                ContinuityClient.LOGGER.info(
+                        ContinuityClient.LOG_PREFIX
+                                + "Loaded {} emissive sprite mappings from AtlasLoaderLoadContext",
+                        emissiveIdMap.size());
+                return;
+            }
+        }
+
+        // Try SpriteLoaderLoadContext (set during model baking, for backwards compatibility)
         SpriteLoaderLoadContext context = SpriteLoaderLoadContext.THREAD_LOCAL.get();
         if (context != null) {
-            SpriteLoaderLoadContext.EmissiveControl emissiveControl = context.getEmissiveControl(Identifier.of("minecraft", "blocks"));
+            SpriteLoaderLoadContext.EmissiveControl emissiveControl =
+                    context.getEmissiveControl(Identifier.of("minecraft", "blocks"));
             if (emissiveControl != null) {
                 Map<Identifier, Identifier> emissiveIdMap = emissiveControl.getEmissiveIdMap();
                 if (emissiveIdMap != null) {
                     emissiveMapping.putAll(emissiveIdMap);
-                    ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX + "Loaded {} emissive sprite mappings", emissiveIdMap.size());
+                    ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
+                            + "Loaded {} emissive sprite mappings from SpriteLoaderLoadContext",
+                            emissiveIdMap.size());
                     return;
                 }
             }
         }
-        
-        ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX + "No emissive sprites registered (normal if no resource packs use emissive textures)");
+
+        ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
+                + "No emissive sprites registered (normal if no resource packs use emissive textures)");
     }
 
     /**
-     * Get the emissive sprite ID for a given base sprite ID.
-     * Returns null if no emissive variant exists.
+     * Get the emissive sprite ID for a given base sprite ID. Returns null if no emissive variant
+     * exists.
      */
     public Identifier getEmissiveVariant(Identifier baseId) {
         return emissiveMapping.get(baseId);
@@ -60,3 +89,4 @@ public class EmissiveTextureManager implements SimpleSynchronousResourceReloadLi
         return Collections.unmodifiableMap(emissiveMapping);
     }
 }
+

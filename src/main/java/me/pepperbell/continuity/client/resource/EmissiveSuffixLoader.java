@@ -14,6 +14,7 @@ import net.minecraft.util.Identifier;
 
 public final class EmissiveSuffixLoader {
 	public static final Identifier LOCATION = Identifier.ofVanilla("optifine/emissive.properties");
+	public static final String DEFAULT_SUFFIX = "_e"; // Fallback suffix for emissive textures
 
 	private static String emissiveSuffix;
 
@@ -32,9 +33,26 @@ public final class EmissiveSuffixLoader {
 				Properties properties = new Properties();
 				properties.load(inputStream);
 				emissiveSuffix = properties.getProperty("suffix.emissive");
+				ContinuityClient.LOGGER.info(
+						ContinuityClient.LOG_PREFIX + "Loaded emissive suffix from '{}': '{}'",
+						LOCATION, emissiveSuffix);
 			} catch (IOException e) {
-				ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "Failed to load emissive suffix from file '" + LOCATION + "'", e);
+				ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX
+						+ "Failed to load emissive suffix from file '" + LOCATION + "'", e);
 			}
+		} else {
+			ContinuityClient.LOGGER.debug(
+					ContinuityClient.LOG_PREFIX
+							+ "Emissive suffix file not found: '{}', using default suffix: '{}'",
+					LOCATION, DEFAULT_SUFFIX);
+		}
+
+		// Use default suffix if not loaded
+		if (emissiveSuffix == null) {
+			emissiveSuffix = DEFAULT_SUFFIX;
+			ContinuityClient.LOGGER.info(
+					ContinuityClient.LOG_PREFIX + "Using default emissive suffix: '{}'",
+					DEFAULT_SUFFIX);
 		}
 	}
 }
