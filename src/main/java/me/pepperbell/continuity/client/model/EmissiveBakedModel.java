@@ -5,7 +5,6 @@ import java.util.function.Predicate;
 import org.jetbrains.annotations.Nullable;
 
 import me.pepperbell.continuity.api.client.EmissiveSpriteApi;
-import me.pepperbell.continuity.client.config.ContinuityConfig;
 import me.pepperbell.continuity.client.util.QuadUtil;
 import me.pepperbell.continuity.client.util.RenderUtil;
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView;
@@ -14,7 +13,6 @@ import net.fabricmc.fabric.api.renderer.v1.mesh.QuadTransform;
 import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.BlockRenderLayer;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.math.Direction;

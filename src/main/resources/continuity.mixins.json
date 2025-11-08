@@ -6,7 +6,6 @@
   "client": [
     "AtlasLoaderMixin",
     "BakedModelManagerMixin",
-    "BlockModelRendererMixin",
     "BlockModelsAccessor",
     "BlockModelsMixin",
     "LifecycledResourceManagerImplMixin",

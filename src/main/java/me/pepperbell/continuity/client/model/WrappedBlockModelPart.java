@@ -1,6 +1,5 @@
 package me.pepperbell.continuity.client.model;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.client.render.model.BakedQuad;
@@ -11,8 +10,8 @@ import net.minecraft.util.math.Direction;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Wrapper for BlockModelPart that allows modification of quads.
- * This enables CTM and emissive processing to continue working with the new model system.
+ * Wrapper for BlockModelPart that allows modification of quads. This enables CTM and emissive
+ * processing to continue working with the new model system.
  * 
  * @since 1.21.10 migration
  */
@@ -26,14 +25,14 @@ public abstract class WrappedBlockModelPart implements BlockModelPart {
 	@Override
 	public List<BakedQuad> getQuads(@Nullable Direction side) {
 		List<BakedQuad> originalQuads = wrapped.getQuads(side);
-		
+
 		// Allow subclasses to process/modify quads
 		return processQuads(originalQuads, side);
 	}
 
 	/**
-	 * Process and potentially modify the quads from the wrapped part.
-	 * Default implementation returns quads unchanged.
+	 * Process and potentially modify the quads from the wrapped part. Default implementation
+	 * returns quads unchanged.
 	 * 
 	 * @param quads The original quads from the wrapped part
 	 * @param side The face direction (null for non-culled quads)

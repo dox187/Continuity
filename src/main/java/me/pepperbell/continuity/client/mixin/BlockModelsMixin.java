@@ -30,9 +30,9 @@ abstract class BlockModelsMixin {
 					net.minecraft.client.MinecraftClient.getInstance().getResourceManager());
 		} catch (Exception e) {
 			// COMMENTED OUT - Error level high frequency
-			// me.pepperbell.continuity.client.ContinuityClient.LOGGER.error(
-			// me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX +
-			// "Failed to reload CTM during setModels", e);
+			me.pepperbell.continuity.client.ContinuityClient.LOGGER
+					.error(me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX
+							+ "Failed to reload CTM during setModels", e);
 		}
 	}
 

@@ -11,7 +11,6 @@ import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntMaps;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import me.pepperbell.continuity.api.client.QuadProcessor;
-import me.pepperbell.continuity.client.ContinuityClient;
 import me.pepperbell.continuity.client.processor.simple.CtmSpriteProvider;
 import me.pepperbell.continuity.client.properties.BaseCtmProperties;
 import me.pepperbell.continuity.client.properties.CompactConnectingCtmProperties;
