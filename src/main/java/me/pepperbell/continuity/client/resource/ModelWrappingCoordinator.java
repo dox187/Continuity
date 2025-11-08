@@ -20,11 +20,12 @@ public class ModelWrappingCoordinator {
      */
     public static void setBlockModels(BlockModels models) {
         blockModels = models;
-        atlasLoadingComplete.set(false);
+        // DON'T reset atlasLoadingComplete - it may have already completed!
+        // Only reset modelsWrapped since we have new models to wrap
         modelsWrapped.set(false);
 
         ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
-                + "ModelWrappingCoordinator: Block models set, waiting for atlas loading. Current state: blockModels={}, atlasLoadingComplete={}, modelsWrapped={}",
+                + "ModelWrappingCoordinator: Block models set, checking if atlas already complete. Current state: blockModels={}, atlasLoadingComplete={}, modelsWrapped={}",
                 blockModels != null, atlasLoadingComplete.get(), modelsWrapped.get());
 
         performWrappingIfReady();

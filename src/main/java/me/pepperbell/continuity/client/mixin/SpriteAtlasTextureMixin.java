@@ -35,15 +35,23 @@ abstract class SpriteAtlasTextureMixin {
                 + "SpriteAtlasTextureMixin: Atlas upload completed for: {}", id);
 
         // Only process blocks atlas - emissive textures are only in the blocks atlas
-        // In 1.21.10, atlas IDs are like "minecraft:blocks"
-        if (!id.equals(Identifier.of("minecraft", "blocks"))) {
+        // Atlas identifiers can have different forms across versions and callers:
+        // - minecraft:blocks
+        // - minecraft:textures/atlas/blocks.png
+        // Accept both by checking the path for common suffixes.
+        String atlasPath = (id == null) ? "" : id.getPath();
+        boolean isBlocksAtlas = "blocks".equals(atlasPath) || atlasPath.endsWith("blocks.png")
+                || atlasPath.endsWith("/blocks") || atlasPath.endsWith("/blocks.png");
+
+        if (!isBlocksAtlas) {
             ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
                     + "SpriteAtlasTextureMixin: Skipping non-blocks atlas: {}", id);
             return;
         }
 
         ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
-                + "SpriteAtlasTextureMixin: Processing blocks atlas upload, triggering coordinator");
+                + "SpriteAtlasTextureMixin: Processing blocks atlas upload (id={} / path={}), triggering coordinator",
+                id, atlasPath);
 
         // *** CRITICAL FIX: Always notify coordinator that atlas loading is complete ***
         // This must happen regardless of emissive sprites to ensure CTM wrapping works
