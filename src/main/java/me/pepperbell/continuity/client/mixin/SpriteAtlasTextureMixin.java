@@ -30,11 +30,20 @@ abstract class SpriteAtlasTextureMixin {
      */
     @Inject(method = "upload", at = @At("TAIL"))
     private void continuity$linkEmissiveSprites(CallbackInfo ci) {
+        // Log every atlas upload for debugging
+        ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
+                + "SpriteAtlasTextureMixin: Atlas upload completed for: {}", id);
+
         // Only process blocks atlas - emissive textures are only in the blocks atlas
         // In 1.21.10, atlas IDs are like "minecraft:blocks"
         if (!id.equals(Identifier.of("minecraft", "blocks"))) {
+            ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
+                    + "SpriteAtlasTextureMixin: Skipping non-blocks atlas: {}", id);
             return;
         }
+
+        ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
+                + "SpriteAtlasTextureMixin: Processing blocks atlas upload, triggering coordinator");
 
         // *** CRITICAL FIX: Always notify coordinator that atlas loading is complete ***
         // This must happen regardless of emissive sprites to ensure CTM wrapping works

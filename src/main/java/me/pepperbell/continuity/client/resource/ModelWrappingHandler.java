@@ -23,6 +23,11 @@ public class ModelWrappingHandler {
 	public static void setInstance(boolean wrapCtm, boolean wrapEmissive) {
 		ModelWrappingHandler.wrapCtm = wrapCtm;
 		ModelWrappingHandler.wrapEmissive = wrapEmissive;
+
+		me.pepperbell.continuity.client.ContinuityClient.LOGGER.info(
+				me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX
+						+ "ModelWrappingHandler: Configuration set - wrapCtm={}, wrapEmissive={}",
+				wrapCtm, wrapEmissive);
 	}
 
 	public static void resetInstance() {

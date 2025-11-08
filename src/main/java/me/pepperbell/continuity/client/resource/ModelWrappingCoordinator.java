@@ -23,8 +23,11 @@ public class ModelWrappingCoordinator {
         atlasLoadingComplete.set(false);
         modelsWrapped.set(false);
 
-        ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
-                + "ModelWrappingCoordinator: Block models set, waiting for atlas loading");
+        ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
+                + "ModelWrappingCoordinator: Block models set, waiting for atlas loading. Current state: blockModels={}, atlasLoadingComplete={}, modelsWrapped={}",
+                blockModels != null, atlasLoadingComplete.get(), modelsWrapped.get());
+
+        performWrappingIfReady();
     }
 
     /**
@@ -34,8 +37,9 @@ public class ModelWrappingCoordinator {
     public static void onAtlasLoadingComplete() {
         atlasLoadingComplete.set(true);
 
-        ContinuityClient.LOGGER.debug(
-                ContinuityClient.LOG_PREFIX + "ModelWrappingCoordinator: Atlas loading complete");
+        ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
+                + "ModelWrappingCoordinator: Atlas loading complete - blockModels={}, atlasLoadingComplete={}, modelsWrapped={}",
+                blockModels != null, atlasLoadingComplete.get(), modelsWrapped.get());
 
         performWrappingIfReady();
     }
