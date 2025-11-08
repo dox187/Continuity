@@ -44,9 +44,13 @@ abstract class AtlasLoaderMixin {
 
 	// Track which atlas we're currently processing via thread-local storage
 	private static final ThreadLocal<Identifier> CURRENT_ATLAS_ID = new ThreadLocal<>();
-	
-	// Store atlas ID per instance using a map since we can't store it in instance field before super()
-	private static final Map<Object, Identifier> INSTANCE_ATLAS_MAP = new java.util.concurrent.ConcurrentHashMap<>();	/**
+
+	// Store atlas ID per instance using a map since we can't store it in instance field before
+	// super()
+	private static final Map<Object, Identifier> INSTANCE_ATLAS_MAP =
+			new java.util.concurrent.ConcurrentHashMap<>();
+
+	/**
 	 * Log which atlas is being created and set current atlas ID
 	 */
 	@Inject(method = "of(Lnet/minecraft/resource/ResourceManager;Lnet/minecraft/util/Identifier;)Lnet/minecraft/client/texture/atlas/AtlasLoader;",
@@ -152,10 +156,12 @@ abstract class AtlasLoaderMixin {
 		Identifier atlasId = CURRENT_ATLAS_ID.get();
 		if (atlasId != null) {
 			INSTANCE_ATLAS_MAP.put(this, atlasId);
-			ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
-					+ "AtlasLoaderMixin: Stored atlas ID {} for instance {}", atlasId, this.getClass().getSimpleName());
+			ContinuityClient.LOGGER.debug(
+					ContinuityClient.LOG_PREFIX
+							+ "AtlasLoaderMixin: Stored atlas ID {} for instance {}",
+					atlasId, this.getClass().getSimpleName());
 		}
-		
+
 		// Extra safety cleanup (context should already be cleared by afterLoadSources)
 		// This is here just to ensure cleanup happens even if the other injection fails
 		AtlasLoaderInitContext.THREAD_LOCAL.set(null);
@@ -290,7 +296,7 @@ abstract class AtlasLoaderMixin {
 			// Fallback to ThreadLocal if instance mapping failed
 			currentAtlasId = CURRENT_ATLAS_ID.get();
 		}
-		
+
 		ContinuityClient.LOGGER.info(
 				ContinuityClient.LOG_PREFIX
 						+ "AtlasLoaderMixin: Processing {} sprite suppliers for atlas {}",
@@ -434,7 +440,7 @@ abstract class AtlasLoaderMixin {
 					+ "AtlasLoaderMixin: Skipping emissive processing for atlas {} (not in allowed list)",
 					currentAtlasId);
 		}
-		
+
 		// Clean up instance mapping to prevent memory leaks
 		INSTANCE_ATLAS_MAP.remove(this);
 	}
