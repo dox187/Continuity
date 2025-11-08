@@ -10,7 +10,8 @@
     "BlockModelsMixin",
     "LifecycledResourceManagerImplMixin",
     "RenderLayersMixin",
-    "SpriteMixin"
+    "SpriteMixin",
+    "SpriteAtlasTextureMixin"
   ],
   "injectors": {
     "defaultRequire": 1

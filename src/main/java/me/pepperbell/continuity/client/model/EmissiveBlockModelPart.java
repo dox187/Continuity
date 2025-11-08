@@ -6,6 +6,7 @@ import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 import me.pepperbell.continuity.api.client.EmissiveSpriteApi;
+import me.pepperbell.continuity.client.mixinterface.SpriteExtension;
 import me.pepperbell.continuity.client.util.QuadUtil;
 import net.fabricmc.fabric.api.renderer.v1.Renderer;
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
@@ -59,7 +60,17 @@ public class EmissiveBlockModelPart extends WrappedBlockModelPart {
 		int emissiveQuadCount = 0;
 		for (BakedQuad quad : quads) {
 			Sprite sprite = quad.sprite();
-			Sprite emissiveSprite = EmissiveSpriteApi.get().getEmissiveSprite(sprite);
+
+			// Try to get emissive sprite via SpriteMixin reference first
+			Sprite emissiveSprite = null;
+			if (sprite instanceof SpriteExtension) {
+				emissiveSprite = ((SpriteExtension) sprite).continuity$getEmissiveSprite();
+			}
+
+			// If not found via reference, try the API (for backwards compatibility)
+			if (emissiveSprite == null) {
+				emissiveSprite = EmissiveSpriteApi.get().getEmissiveSprite(sprite);
+			}
 
 			if (emissiveSprite != null) {
 				// Convert BakedQuad to MutableQuadView for processing
