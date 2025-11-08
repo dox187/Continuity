@@ -5,6 +5,10 @@ build/
 out/
 classes/
 
+# maven
+.mvn/
+META-INF/
+
 # eclipse
 
 *.launch
