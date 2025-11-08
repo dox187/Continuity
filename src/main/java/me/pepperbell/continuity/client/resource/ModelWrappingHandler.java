@@ -42,13 +42,16 @@ public class ModelWrappingHandler {
 			return;
 		}
 
+		// Don't wrap emissive if there are no emissive sprites registered
+		boolean shouldWrapEmissive = wrapEmissive && EmissiveSpriteRegistry.hasEmissives();
+
 		// Access the internal models map through the accessor
 		Map<BlockState, BlockStateModel> models = ((BlockModelsAccessor) blockModels).getModels();
 
 		me.pepperbell.continuity.client.ContinuityClient.LOGGER.info(
 				me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX
-						+ "Starting model wrapping: {} models in map, wrapCtm={}, wrapEmissive={}",
-				models.size(), wrapCtm, wrapEmissive);
+						+ "Starting model wrapping: {} models in map, wrapCtm={}, wrapEmissive={} (actual={})",
+				models.size(), wrapCtm, wrapEmissive, shouldWrapEmissive);
 
 		int ctmWrappedCount = 0;
 		int emissiveWrappedCount = 0;
@@ -76,7 +79,7 @@ public class ModelWrappingHandler {
 			}
 
 			// Wrap with emissive support if enabled
-			if (wrapEmissive && !(model instanceof EmissiveBlockStateModel)) {
+			if (shouldWrapEmissive && !(model instanceof EmissiveBlockStateModel)) {
 				try {
 					wrappedModel = new EmissiveBlockStateModel(wrappedModel, state);
 					emissiveWrappedCount++;
@@ -89,7 +92,7 @@ public class ModelWrappingHandler {
 									+ "Failed to wrap emissive model for block {}", state, e);
 					skippedEmissiveCount++;
 				}
-			} else if (model instanceof EmissiveBlockStateModel && wrapEmissive) {
+			} else if (model instanceof EmissiveBlockStateModel && shouldWrapEmissive) {
 				skippedEmissiveCount++;
 			}
 
@@ -98,8 +101,8 @@ public class ModelWrappingHandler {
 
 		me.pepperbell.continuity.client.ContinuityClient.LOGGER.info(
 				me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX
-						+ "Model wrapping complete: CTM wrapped={}, skipped={}; Emissive wrapped={}, skipped={}; Total models={}",
+						+ "Model wrapping complete: CTM wrapped={}, skipped={}; Emissive wrapped={}, skipped={} (actual={}, hasEmissives={}); Total models={}",
 				ctmWrappedCount, skippedCtmCount, emissiveWrappedCount, skippedEmissiveCount,
-				models.size());
+				shouldWrapEmissive, EmissiveSpriteRegistry.hasEmissives(), models.size());
 	}
 }

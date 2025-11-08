@@ -3,6 +3,7 @@ package me.pepperbell.continuity.client.model;
 import java.util.List;
 
 import me.pepperbell.continuity.client.config.ContinuityConfig;
+import me.pepperbell.continuity.client.resource.EmissiveSpriteRegistry;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.model.BlockModelPart;
 import net.minecraft.client.render.model.BlockStateModel;
@@ -36,35 +37,31 @@ public class EmissiveBlockStateModel extends WrappedBlockStateModel {
 
 		// Only process if emissive textures are enabled
 		if (!ContinuityConfig.INSTANCE.emissiveTextures.get()) {
-			me.pepperbell.continuity.client.ContinuityClient.LOGGER.debug(
-					me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX
-							+ "EmissiveBlockStateModel: Emissive textures disabled for block {}",
-					blockState);
 			return;
 		}
 
 		ModelObjectsContainer container = ModelObjectsContainer.get();
 		if (!container.featureStates.getEmissiveTexturesState().isEnabled()) {
-			me.pepperbell.continuity.client.ContinuityClient.LOGGER.debug(
-					me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX
-							+ "EmissiveBlockStateModel: Emissive feature disabled for block {}",
-					blockState);
 			return;
 		}
 
-		// Wrap each part to add emissive processing
-		int wrappedPartsCount = 0;
+		// Only wrap if there are actually emissive sprites registered
+		if (!EmissiveSpriteRegistry.hasEmissives()) {
+			return;
+		}
+
+		// Wrap each part ONLY if there's actually an emissive sprite for this block
 		for (int i = 0; i < parts.size(); i++) {
 			BlockModelPart part = parts.get(i);
 			EmissiveBlockModelPart wrappedPart = new EmissiveBlockModelPart(part, blockState);
-			parts.set(i, wrappedPart);
-			wrappedPartsCount++;
+
+			// Check if this part actually has emissive quads
+			// Only replace if wrapping was successful (emissive sprites found)
+			if (wrappedPart.hasEmissiveQuads()) {
+				parts.set(i, wrappedPart);
+			}
 		}
 
-		me.pepperbell.continuity.client.ContinuityClient.LOGGER.info(
-				me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX
-						+ "EmissiveBlockStateModel: Successfully wrapped {} parts for block {} with emissive support",
-				wrappedPartsCount, blockState);
 	}
 
 	/**

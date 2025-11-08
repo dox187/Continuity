@@ -35,7 +35,8 @@ public class CtmBlockStateModel extends WrappedBlockStateModel {
 	}
 
 	@Override
-	public void emitQuads(QuadEmitter emitter, BlockRenderView blockView, BlockPos pos, BlockState state, Random random, Predicate<@Nullable Direction> cullTest) {
+	public void emitQuads(QuadEmitter emitter, BlockRenderView blockView, BlockPos pos,
+			BlockState state, Random random, Predicate<@Nullable Direction> cullTest) {
 		BlockState renderState = Objects.requireNonNullElse(state, defaultState);
 
 		if (!shouldApplyCtm()) {
@@ -59,8 +60,15 @@ public class CtmBlockStateModel extends WrappedBlockStateModel {
 
 		Function<Sprite, QuadProcessors.Slice> sliceFunc = QuadProcessors.getCache(renderState);
 
+		// Skip CTM processing if no cache entry for this block state
+		if (sliceFunc == null) {
+			emitWrapped(emitter, blockView, pos, renderState, random, cullTest);
+			return;
+		}
+
 		var transform = container.ctmQuadTransform;
-		transform.prepare(blockView, renderState, renderState, pos, randomSupplier, cullTest, sliceFunc);
+		transform.prepare(blockView, renderState, renderState, pos, randomSupplier, cullTest,
+				sliceFunc);
 
 		try {
 			mesh.forEachMutable(mutableQuad -> processQuad(mutableQuad, emitter, transform));
@@ -83,7 +91,8 @@ public class CtmBlockStateModel extends WrappedBlockStateModel {
 		return ContinuityConfig.INSTANCE.connectedTextures.get();
 	}
 
-	private void processQuad(MutableQuadView quad, QuadEmitter outputEmitter, CtmBakedModel.CtmQuadTransform transform) {
+	private void processQuad(MutableQuadView quad, QuadEmitter outputEmitter,
+			CtmBakedModel.CtmQuadTransform transform) {
 		boolean keep = transform.transform(quad);
 
 		if (keep) {
@@ -95,7 +104,8 @@ public class CtmBlockStateModel extends WrappedBlockStateModel {
 		transform.processingContext.reset();
 	}
 
-	private void emitWrapped(QuadEmitter emitter, BlockRenderView blockView, BlockPos pos, BlockState state, Random random, Predicate<@Nullable Direction> cullTest) {
+	private void emitWrapped(QuadEmitter emitter, BlockRenderView blockView, BlockPos pos,
+			BlockState state, Random random, Predicate<@Nullable Direction> cullTest) {
 		if (wrapped instanceof FabricBlockStateModel fabric) {
 			fabric.emitQuads(emitter, blockView, pos, state, random, cullTest);
 			return;

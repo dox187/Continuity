@@ -35,10 +35,16 @@ public class EmissiveBlockModelPart extends WrappedBlockModelPart {
 	}
 
 	private final BlockState state;
+	private boolean hasEmissiveQuads = false;
 
 	public EmissiveBlockModelPart(BlockModelPart wrapped, BlockState state) {
 		super(wrapped);
 		this.state = state;
+		this.hasEmissiveQuads = false;
+	}
+
+	public boolean hasEmissiveQuads() {
+		return hasEmissiveQuads;
 	}
 
 	@Override
@@ -50,6 +56,7 @@ public class EmissiveBlockModelPart extends WrappedBlockModelPart {
 		var mutableMesh = renderer.mutableMesh();
 		var emitter = mutableMesh.emitter();
 
+		int emissiveQuadCount = 0;
 		for (BakedQuad quad : quads) {
 			Sprite sprite = quad.sprite();
 			Sprite emissiveSprite = EmissiveSpriteApi.get().getEmissiveSprite(sprite);
@@ -67,7 +74,13 @@ public class EmissiveBlockModelPart extends WrappedBlockModelPart {
 
 				// Convert back to BakedQuad
 				result.add(emitter.toBakedQuad(emissiveSprite));
+				emissiveQuadCount++;
 			}
+		}
+
+		// Set flag if we found and added emissive quads
+		if (emissiveQuadCount > 0) {
+			this.hasEmissiveQuads = true;
 		}
 
 		return result;
