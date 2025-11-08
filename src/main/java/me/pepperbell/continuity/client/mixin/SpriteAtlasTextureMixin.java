@@ -1,6 +1,7 @@
 package me.pepperbell.continuity.client.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -19,16 +20,25 @@ import net.minecraft.util.Identifier;
 @Mixin(SpriteAtlasTexture.class)
 abstract class SpriteAtlasTextureMixin {
 
+    @Shadow
+    private Identifier id;
+
     /**
      * Hook into the atlas sprite loading completion. This is called after all sprites have been
      * loaded and registered in the atlas, making it safe to look them up.
      */
     @Inject(method = "upload", at = @At("TAIL"))
     private void continuity$linkEmissiveSprites(CallbackInfo ci) {
+        // Only process blocks atlas - emissive textures are only in the blocks atlas
+        // In 1.21.10, atlas IDs are like "minecraft:blocks"
+        if (!id.equals(Identifier.of("minecraft", "blocks"))) {
+            return;
+        }
+
         // Only process if there are emissive sprites registered
         if (!EmissiveSpriteRegistry.hasEmissives()) {
-            ContinuityClient.LOGGER.debug(
-                    ContinuityClient.LOG_PREFIX + "SpriteAtlasTextureMixin: No emissive sprites in registry");
+            ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
+                    + "SpriteAtlasTextureMixin: No emissive sprites in registry");
             return;
         }
 
@@ -37,8 +47,8 @@ abstract class SpriteAtlasTextureMixin {
             var emissiveMapping = EmissiveSpriteRegistry.getEmissiveMapping();
 
             if (emissiveMapping.isEmpty()) {
-                ContinuityClient.LOGGER.debug(
-                        ContinuityClient.LOG_PREFIX + "SpriteAtlasTextureMixin: Empty emissive mapping");
+                ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
+                        + "SpriteAtlasTextureMixin: Empty emissive mapping");
                 return;
             }
 
@@ -48,9 +58,8 @@ abstract class SpriteAtlasTextureMixin {
             int linkedCount = 0;
             int failedCount = 0;
 
-            ContinuityClient.LOGGER.info(
-                    ContinuityClient.LOG_PREFIX
-                            + "SpriteAtlasTextureMixin: Attempting to link {} emissive sprite mappings",
+            ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
+                    + "SpriteAtlasTextureMixin: Attempting to link {} emissive sprite mappings",
                     emissiveMapping.size());
 
             for (var entry : emissiveMapping.entrySet()) {
@@ -91,9 +100,8 @@ abstract class SpriteAtlasTextureMixin {
                 }
             }
 
-            ContinuityClient.LOGGER.info(
-                    ContinuityClient.LOG_PREFIX
-                            + "SpriteAtlasTextureMixin: Linked {} emissive sprites, {} failed mappings",
+            ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
+                    + "SpriteAtlasTextureMixin: Linked {} emissive sprites, {} failed mappings",
                     linkedCount, failedCount);
         } catch (Exception e) {
             ContinuityClient.LOGGER
