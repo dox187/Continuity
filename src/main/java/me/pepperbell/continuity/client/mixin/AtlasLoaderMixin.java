@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
@@ -47,49 +48,88 @@ abstract class AtlasLoaderMixin {
 	 * IMPORTANT: This loads CTM properties directly because there's no reliable hook that runs
 	 * before this constructor on the same thread with proper timing.
 	 */
+	/**
+	 * Hook into the AtlasLoader constructor ENTRY to prepare the context BEFORE sources are
+	 * modified. This ensures the context is available when modifySources is called.
+	 */
+	@Inject(method = "<init>(Ljava/util/List;)V", at = @At("HEAD"))
+	private void continuity$setupContextBeforeInit(CallbackInfo ci) {
+		// Load CTM suffix and properties if not already loaded
+		try {
+			// Get resource manager from thread-local context if available
+			// Otherwise we'll load from cache
+			synchronized (CACHE_LOCK) {
+				if (cachedTextureDependencies != null) {
+					Identifier blocksAtlasId = Identifier.of("minecraft", "blocks");
+					Set<Identifier> extraIds = cachedTextureDependencies.get(blocksAtlasId);
+					if (extraIds != null && !extraIds.isEmpty()) {
+						ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
+								+ "Setting up AtlasLoaderInitContext with {} CTM textures for blocks atlas",
+								extraIds.size());
+						AtlasLoaderInitContext initContext = new AtlasLoaderInitContext() {
+							@Override
+							public Set<Identifier> getExtraIds() {
+								return extraIds;
+							}
+						};
+						AtlasLoaderInitContext.THREAD_LOCAL.set(initContext);
+					}
+				}
+			}
+		} catch (Exception e) {
+			ContinuityClient.LOGGER.debug(
+					ContinuityClient.LOG_PREFIX + "Error setting up AtlasLoaderInitContext: {}",
+					e.getMessage());
+		}
+	}
+
 	@ModifyVariable(method = "<init>(Ljava/util/List;)V", at = @At(value = "LOAD", ordinal = 0),
 			argsOnly = true, ordinal = 0)
 	private List<AtlasSource> continuity$modifySources(List<AtlasSource> sources,
 			List<AtlasSource> originalSources) {
-		// Try to get context first (if it was set elsewhere)
+		// Only inject if we have a context set (which means this is the blocks atlas)
 		AtlasLoaderInitContext context = AtlasLoaderInitContext.THREAD_LOCAL.get();
-		Set<Identifier> extraIds = null;
-
-		if (context != null) {
-			extraIds = context.getExtraIds();
+		if (context == null) {
+			// No context means this atlas doesn't need CTM textures (e.g., item, entity atlases)
+			return sources;
 		}
 
-		// If no context, try to load from cache or load fresh
-		if (extraIds == null && cachedTextureDependencies != null) {
-			Identifier blocksAtlasId = Identifier.of("minecraft", "blocks");
-			extraIds = cachedTextureDependencies.get(blocksAtlasId);
+		Set<Identifier> extraIds = context.getExtraIds();
+		if (extraIds == null || extraIds.isEmpty()) {
+			return sources;
 		}
 
-		if (extraIds != null && !extraIds.isEmpty()) {
-			synchronized (CACHE_LOCK) {
-				if (!hasLoggedInjection) {
-					ContinuityClient.LOGGER.info(
-							ContinuityClient.LOG_PREFIX + "Injecting {} CTM texture(s) into atlas",
-							extraIds.size());
-					hasLoggedInjection = true;
-				}
-			}
-
-			List<AtlasSource> extraSources = new ObjectArrayList<>();
-			for (Identifier extraId : extraIds) {
-				extraSources.add(new SingleAtlasSource(extraId, Optional.empty()));
-			}
-
-			if (sources instanceof ArrayList) {
-				sources.addAll(0, extraSources);
-			} else {
-				List<AtlasSource> mutableSources = new ArrayList<>(extraSources);
-				mutableSources.addAll(sources);
-				return mutableSources;
+		synchronized (CACHE_LOCK) {
+			if (!hasLoggedInjection) {
+				ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
+						+ "Injecting {} CTM texture(s) into blocks atlas", extraIds.size());
+				hasLoggedInjection = true;
 			}
 		}
-		// Remove else block - it's normal for non-blocks atlases to have no CTM textures
+
+		List<AtlasSource> extraSources = new ObjectArrayList<>();
+		for (Identifier extraId : extraIds) {
+			extraSources.add(new SingleAtlasSource(extraId, Optional.empty()));
+		}
+
+		if (sources instanceof ArrayList) {
+			sources.addAll(0, extraSources);
+		} else {
+			List<AtlasSource> mutableSources = new ArrayList<>(extraSources);
+			mutableSources.addAll(sources);
+			return mutableSources;
+		}
+
 		return sources;
+	}
+
+	/**
+	 * Clean up the init context after the constructor completes.
+	 */
+	@Inject(method = "<init>(Ljava/util/List;)V", at = @At("TAIL"))
+	private void continuity$cleanupContextAfterInit(CallbackInfo ci) {
+		// Clear context after init is complete
+		AtlasLoaderInitContext.THREAD_LOCAL.set(null);
 	}
 
 	/**
@@ -109,6 +149,10 @@ abstract class AtlasLoaderMixin {
 								+ "Loading CTM properties for atlas preparation...");
 						hasLoggedInitialLoad = true;
 					}
+
+					// *** IMPORTANT: Load emissive suffix BEFORE processing emissive sprites ***
+					// This ensures EmissiveSuffixLoader.emissiveSuffix is set before we use it
+					EmissiveSuffixLoader.load(resourceManager);
 
 					// Load CTM properties to get texture dependencies
 					CtmPropertiesLoader.LoadingResult result =
@@ -208,9 +252,8 @@ abstract class AtlasLoaderMixin {
 				// Store in global registry for EmissiveTextureManager and EmissiveBlockModelPart
 				// access
 				EmissiveSpriteRegistry.setEmissiveMapping(emissiveIdMap);
-				ContinuityClient.LOGGER.info(
-						ContinuityClient.LOG_PREFIX
-								+ "Registered {} emissive sprite mappings in global registry",
+				ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX
+						+ "AtlasLoaderMixin: Registered {} emissive sprite mappings in global registry",
 						emissiveIdMap.size());
 
 				// Also try to set in contexts for backwards compatibility
@@ -231,6 +274,11 @@ abstract class AtlasLoaderMixin {
 						emissiveControl.markHasEmissives();
 					}
 				}
+			} else {
+				ContinuityClient.LOGGER.debug(
+						ContinuityClient.LOG_PREFIX
+								+ "AtlasLoaderMixin: No emissive sprites found with suffix '{}'",
+						emissiveSuffix);
 			}
 		}
 	}
