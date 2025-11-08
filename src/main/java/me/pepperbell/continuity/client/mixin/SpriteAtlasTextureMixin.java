@@ -27,6 +27,8 @@ abstract class SpriteAtlasTextureMixin {
     private void continuity$linkEmissiveSprites(CallbackInfo ci) {
         // Only process if there are emissive sprites registered
         if (!EmissiveSpriteRegistry.hasEmissives()) {
+            ContinuityClient.LOGGER.debug(
+                    ContinuityClient.LOG_PREFIX + "SpriteAtlasTextureMixin: No emissive sprites in registry");
             return;
         }
 
@@ -35,6 +37,8 @@ abstract class SpriteAtlasTextureMixin {
             var emissiveMapping = EmissiveSpriteRegistry.getEmissiveMapping();
 
             if (emissiveMapping.isEmpty()) {
+                ContinuityClient.LOGGER.debug(
+                        ContinuityClient.LOG_PREFIX + "SpriteAtlasTextureMixin: Empty emissive mapping");
                 return;
             }
 
@@ -43,6 +47,11 @@ abstract class SpriteAtlasTextureMixin {
 
             int linkedCount = 0;
             int failedCount = 0;
+
+            ContinuityClient.LOGGER.info(
+                    ContinuityClient.LOG_PREFIX
+                            + "SpriteAtlasTextureMixin: Attempting to link {} emissive sprite mappings",
+                    emissiveMapping.size());
 
             for (var entry : emissiveMapping.entrySet()) {
                 Identifier baseId = entry.getKey();
@@ -82,12 +91,10 @@ abstract class SpriteAtlasTextureMixin {
                 }
             }
 
-            if (linkedCount > 0 || failedCount > 0) {
-                ContinuityClient.LOGGER.debug(
-                        ContinuityClient.LOG_PREFIX
-                                + "Linked {} emissive sprites, {} failed mappings",
-                        linkedCount, failedCount);
-            }
+            ContinuityClient.LOGGER.info(
+                    ContinuityClient.LOG_PREFIX
+                            + "SpriteAtlasTextureMixin: Linked {} emissive sprites, {} failed mappings",
+                    linkedCount, failedCount);
         } catch (Exception e) {
             ContinuityClient.LOGGER
                     .error(ContinuityClient.LOG_PREFIX + "Error linking emissive sprites", e);
