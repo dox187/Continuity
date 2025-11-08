@@ -20,20 +20,20 @@ static String getExtraBuildMetadata() {
 
 repositories {
 	maven {
-		name 'TerraformersMC'
-		url 'https://maven.terraformersmc.com'
+		name = 'TerraformersMC'
+		url = 'https://maven.terraformersmc.com'
 	}
 	maven {
-		name 'Modrinth'
-		url 'https://api.modrinth.com/maven'
+		name = 'Modrinth'
+		url = 'https://api.modrinth.com/maven'
 	}
 	maven {
-		name 'Shedaniel'
-		url 'https://maven.shedaniel.me'
+		name = 'Shedaniel'
+		url = 'https://maven.shedaniel.me'
 	}
 	maven {
-		name 'ModMaven'
-		url 'https://modmaven.dev/'
+		name = 'ModMaven'
+		url = 'https://modmaven.dev/'
 	}
 }
 

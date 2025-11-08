@@ -12,12 +12,14 @@ import net.minecraft.resource.ResourcePack;
 import net.minecraft.util.Identifier;
 
 public class RandomCtmProperties extends BaseCtmProperties {
-	protected RandomIndexProvider.Factory indexProviderFactory = RandomIndexProvider.UnweightedFactory.INSTANCE;
+	protected RandomIndexProvider.Factory indexProviderFactory =
+			RandomIndexProvider.UnweightedFactory.INSTANCE;
 	protected int randomLoops = 0;
 	protected Symmetry symmetry = Symmetry.NONE;
 	protected boolean linked = false;
 
-	public RandomCtmProperties(Properties properties, Identifier resourceId, ResourcePack pack, int packPriority, ResourceManager resourceManager, String method) {
+	public RandomCtmProperties(Properties properties, Identifier resourceId, ResourcePack pack,
+			int packPriority, ResourceManager resourceManager, String method) {
 		super(properties, resourceId, pack, packPriority, resourceManager, method);
 	}
 
@@ -67,11 +69,14 @@ public class RandomCtmProperties extends BaseCtmProperties {
 				} catch (NumberFormatException e) {
 					//
 				}
-				ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'weights' element '" + weightStr + "' at index '" + i + "' in file '" + resourceId + "' in pack '" + packId + "'");
+				// COMMENTED OUT - Parsing time frequency warnings
+				// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'weights'
+				// element '" + weightStr + "' at index '" + i + "' in file '" + resourceId + "' in
+				// pack '" + packId + "'");
 			}
-
 			if (!weights.isEmpty()) {
-				indexProviderFactory = new RandomIndexProvider.WeightedFactory(weights.toIntArray());
+				indexProviderFactory =
+						new RandomIndexProvider.WeightedFactory(weights.toIntArray());
 			}
 		}
 	}
@@ -91,11 +96,14 @@ public class RandomCtmProperties extends BaseCtmProperties {
 		} catch (NumberFormatException e) {
 			//
 		}
-		ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'randomLoops' value '" + randomLoopsStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+		// COMMENTED OUT - Parsing time frequency warnings
+		// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'randomLoops' value
+		// '" + randomLoopsStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
 	}
 
 	protected void parseSymmetry() {
-		Symmetry symmetry = PropertiesParsingHelper.parseSymmetry(properties, "symmetry", resourceId, packId);
+		Symmetry symmetry =
+				PropertiesParsingHelper.parseSymmetry(properties, "symmetry", resourceId, packId);
 		if (symmetry != null) {
 			this.symmetry = symmetry;
 		}

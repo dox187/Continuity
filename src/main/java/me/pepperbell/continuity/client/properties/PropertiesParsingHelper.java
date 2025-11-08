@@ -33,7 +33,8 @@ public final class PropertiesParsingHelper {
 	public static final Predicate<BlockState> EMPTY_BLOCK_STATE_PREDICATE = state -> false;
 
 	@Nullable
-	public static Set<Identifier> parseMatchTiles(Properties properties, String propertyKey, Identifier fileLocation, String packId) {
+	public static Set<Identifier> parseMatchTiles(Properties properties, String propertyKey,
+			Identifier fileLocation, String packId) {
 		String matchTilesStr = properties.getProperty(propertyKey);
 		if (matchTilesStr == null) {
 			return null;
@@ -96,10 +97,16 @@ public final class PropertiesParsingHelper {
 					try {
 						set.add(Identifier.of(namespace, path));
 					} catch (InvalidIdentifierException e) {
-						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + propertyKey + "' element '" + matchTileStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'", e);
+						// COMMENTED OUT - Parsing time high frequency warnings
+						// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" +
+						// propertyKey + "' element '" + matchTileStr + "' at index " + i + " in
+						// file '" + fileLocation + "' in pack '" + packId + "'", e);
 					}
 				} else {
-					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + propertyKey + "' element '" + matchTileStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+					// COMMENTED OUT - Parsing time high frequency warnings
+					// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" +
+					// propertyKey + "' element '" + matchTileStr + "' at index " + i + " in file '"
+					// + fileLocation + "' in pack '" + packId + "'");
 				}
 			}
 
@@ -110,7 +117,8 @@ public final class PropertiesParsingHelper {
 	}
 
 	@Nullable
-	public static Predicate<BlockState> parseBlockStates(Properties properties, String propertyKey, Identifier fileLocation, String packId) {
+	public static Predicate<BlockState> parseBlockStates(Properties properties, String propertyKey,
+			Identifier fileLocation, String packId) {
 		String blockStatesStr = properties.getProperty(propertyKey);
 		if (blockStatesStr == null) {
 			return null;
@@ -119,10 +127,10 @@ public final class PropertiesParsingHelper {
 		String[] blockStateStrs = blockStatesStr.trim().split(" ");
 		if (blockStateStrs.length != 0) {
 			ReferenceOpenHashSet<Block> blockSet = new ReferenceOpenHashSet<>();
-			Reference2ObjectOpenHashMap<Block, Object2ObjectOpenHashMap<Property<?>, ObjectOpenHashSet<Comparable<?>>>> propertyMaps = new Reference2ObjectOpenHashMap<>();
+			Reference2ObjectOpenHashMap<Block, Object2ObjectOpenHashMap<Property<?>, ObjectOpenHashSet<Comparable<?>>>> propertyMaps =
+					new Reference2ObjectOpenHashMap<>();
 
-			Block:
-			for (int i = 0; i < blockStateStrs.length; i++) {
+			Block: for (int i = 0; i < blockStateStrs.length; i++) {
 				String blockStateStr = blockStateStrs[i].trim();
 				if (blockStateStr.isEmpty()) {
 					continue;
@@ -141,7 +149,10 @@ public final class PropertiesParsingHelper {
 							startIndex = 2;
 						}
 					} catch (InvalidIdentifierException e) {
-						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'", e);
+						// COMMENTED OUT - Parsing time high frequency warnings
+						// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" +
+						// propertyKey + "' element '" + blockStateStr + "' at index " + i + " in
+						// file '" + fileLocation + "' in pack '" + packId + "'", e);
 						continue;
 					}
 
@@ -149,7 +160,8 @@ public final class PropertiesParsingHelper {
 						Block block = Registries.BLOCK.get(blockId);
 						if (!blockSet.contains(block)) {
 							if (parts.length > startIndex) {
-								Object2ObjectOpenHashMap<Property<?>, ObjectOpenHashSet<Comparable<?>>> propertyMap = new Object2ObjectOpenHashMap<>();
+								Object2ObjectOpenHashMap<Property<?>, ObjectOpenHashSet<Comparable<?>>> propertyMap =
+										new Object2ObjectOpenHashMap<>();
 
 								for (int j = startIndex; j < parts.length; j++) {
 									String part = parts[j];
@@ -157,44 +169,82 @@ public final class PropertiesParsingHelper {
 										String[] propertyParts = part.split("=", 2);
 										if (propertyParts.length == 2) {
 											String propertyName = propertyParts[0];
-											Property<?> property = block.getStateManager().getProperty(propertyName);
+											Property<?> property = block.getStateManager()
+													.getProperty(propertyName);
 											if (property != null) {
 												String propertyValuesStr = propertyParts[1];
-												String[] propertyValueStrs = propertyValuesStr.split(",");
+												String[] propertyValueStrs =
+														propertyValuesStr.split(",");
 												if (propertyValueStrs.length != 0) {
-													ObjectOpenHashSet<Comparable<?>> valueSet = propertyMap.computeIfAbsent(property, p -> new ObjectOpenHashSet<>(Hash.DEFAULT_INITIAL_SIZE, Hash.VERY_FAST_LOAD_FACTOR));
+													ObjectOpenHashSet<Comparable<?>> valueSet =
+															propertyMap.computeIfAbsent(property,
+																	p -> new ObjectOpenHashSet<>(
+																			Hash.DEFAULT_INITIAL_SIZE,
+																			Hash.VERY_FAST_LOAD_FACTOR));
 
 													for (String propertyValueStr : propertyValueStrs) {
-														Optional<? extends Comparable<?>> optionalValue = property.parse(propertyValueStr);
+														Optional<? extends Comparable<?>> optionalValue =
+																property.parse(propertyValueStr);
 														if (optionalValue.isPresent()) {
 															valueSet.add(optionalValue.get());
 														} else {
-															ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid block property value '" + propertyValueStr + "' for property '" + propertyName + "' for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+															// COMMENTED OUT - Parsing time high
+															// frequency warnings
+															// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX
+															// + "Invalid block property value '" +
+															// propertyValueStr + "' for property '"
+															// + propertyName + "' for block '" +
+															// blockId + "' in '" + propertyKey + "'
+															// element '" + blockStateStr + "' at
+															// index " + i + " in file '" +
+															// fileLocation + "' in pack '" + packId
+															// + "'");
 															continue Block;
 														}
 													}
 												} else {
-													ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid block property definition for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+													// COMMENTED OUT - Parsing time high frequency
+													// warnings
+													// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX
+													// + "Invalid block property definition for
+													// block '" + blockId + "' in '" + propertyKey +
+													// "' element '" + blockStateStr + "' at index "
+													// + i + " in file '" + fileLocation + "' in
+													// pack '" + packId + "'");
 													continue Block;
 												}
 											} else {
-												ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown block property '" + propertyName + "' for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+												// COMMENTED OUT - Parsing time high frequency
+												// warnings
+												// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX
+												// + "Unknown block property '" + propertyName + "'
+												// for block '" + blockId + "' in '" + propertyKey +
+												// "' element '" + blockStateStr + "' at index " + i
+												// + " in file '" + fileLocation + "' in pack '" +
+												// packId + "'");
 												continue Block;
 											}
 										} else {
-											ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid block property definition for block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+											// COMMENTED OUT - Parsing time high frequency warnings
+											// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX
+											// + "Invalid block property definition for block '" +
+											// blockId + "' in '" + propertyKey + "' element '" +
+											// blockStateStr + "' at index " + i + " in file '" +
+											// fileLocation + "' in pack '" + packId + "'");
 											continue Block;
 										}
 									}
 								}
 
 								if (!propertyMap.isEmpty()) {
-									Object2ObjectOpenHashMap<Property<?>, ObjectOpenHashSet<Comparable<?>>> existingPropertyMap = propertyMaps.get(block);
+									Object2ObjectOpenHashMap<Property<?>, ObjectOpenHashSet<Comparable<?>>> existingPropertyMap =
+											propertyMaps.get(block);
 									if (existingPropertyMap == null) {
 										propertyMaps.put(block, propertyMap);
 									} else {
 										propertyMap.forEach((property, valueSet) -> {
-											ObjectOpenHashSet<Comparable<?>> existingValueSet = existingPropertyMap.get(property);
+											ObjectOpenHashSet<Comparable<?>> existingValueSet =
+													existingPropertyMap.get(property);
 											if (existingValueSet == null) {
 												existingPropertyMap.put(property, valueSet);
 											} else {
@@ -209,10 +259,17 @@ public final class PropertiesParsingHelper {
 							}
 						}
 					} else {
-						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown block '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+						// COMMENTED OUT - Parsing time high frequency warnings
+						// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown block
+						// '" + blockId + "' in '" + propertyKey + "' element '" + blockStateStr +
+						// "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId
+						// + "'");
 					}
 				} else {
-					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file '" + fileLocation + "' in pack '" + packId + "'");
+					// COMMENTED OUT - Parsing time high frequency warnings
+					// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" +
+					// propertyKey + "' element '" + blockStateStr + "' at index " + i + " in file
+					// '" + fileLocation + "' in pack '" + packId + "'");
 				}
 			}
 
@@ -226,12 +283,15 @@ public final class PropertiesParsingHelper {
 						return state -> blockSet.contains(state.getBlock());
 					}
 				} else {
-					Reference2ReferenceOpenHashMap<Block, Predicate<BlockState>> predicateMap = new Reference2ReferenceOpenHashMap<>();
+					Reference2ReferenceOpenHashMap<Block, Predicate<BlockState>> predicateMap =
+							new Reference2ReferenceOpenHashMap<>();
 					blockSet.forEach(block -> {
 						predicateMap.put(block, state -> true);
 					});
 					propertyMaps.forEach((block, propertyMap) -> {
-						Map.Entry<Property<?>, ObjectOpenHashSet<Comparable<?>>>[] entryArray = propertyMap.entrySet().toArray((IntFunction<Map.Entry<Property<?>, ObjectOpenHashSet<Comparable<?>>>[]>) Map.Entry[]::new);
+						Map.Entry<Property<?>, ObjectOpenHashSet<Comparable<?>>>[] entryArray =
+								propertyMap.entrySet().toArray(
+										(IntFunction<Map.Entry<Property<?>, ObjectOpenHashSet<Comparable<?>>>[]>) Map.Entry[]::new);
 						for (Map.Entry<Property<?>, ObjectOpenHashSet<Comparable<?>>> entry : entryArray) {
 							entry.getValue().trim();
 						}
@@ -261,7 +321,8 @@ public final class PropertiesParsingHelper {
 	}
 
 	@Nullable
-	public static Symmetry parseSymmetry(Properties properties, String propertyKey, Identifier fileLocation, String packId) {
+	public static Symmetry parseSymmetry(Properties properties, String propertyKey,
+			Identifier fileLocation, String packId) {
 		String symmetryStr = properties.getProperty(propertyKey);
 		if (symmetryStr == null) {
 			return null;
@@ -270,13 +331,17 @@ public final class PropertiesParsingHelper {
 		try {
 			return Symmetry.valueOf(symmetryStr.trim().toUpperCase(Locale.ROOT));
 		} catch (IllegalArgumentException e) {
-			ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown '" + propertyKey + "' value '" + symmetryStr + "' in file '" + fileLocation + "' in pack '" + packId + "'");
+			// COMMENTED OUT - Parsing time frequency warnings
+			// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown '" + propertyKey
+			// + "' value '" + symmetryStr + "' in file '" + fileLocation + "' in pack '" + packId +
+			// "'");
 		}
 		return null;
 	}
 
 	@Nullable
-	public static OrientationMode parseOrientationMode(Properties properties, String propertyKey, Identifier fileLocation, String packId) {
+	public static OrientationMode parseOrientationMode(Properties properties, String propertyKey,
+			Identifier fileLocation, String packId) {
 		String orientationModeStr = properties.getProperty(propertyKey);
 		if (orientationModeStr == null) {
 			return null;
@@ -285,7 +350,10 @@ public final class PropertiesParsingHelper {
 		try {
 			return OrientationMode.valueOf(orientationModeStr.trim().toUpperCase(Locale.ROOT));
 		} catch (IllegalArgumentException e) {
-			ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown '" + propertyKey + "' value '" + orientationModeStr + "' in file '" + fileLocation + "' in pack '" + packId + "'");
+			// COMMENTED OUT - Parsing time frequency warnings
+			// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown '" + propertyKey
+			// + "' value '" + orientationModeStr + "' in file '" + fileLocation + "' in pack '" +
+			// packId + "'");
 		}
 		return null;
 	}

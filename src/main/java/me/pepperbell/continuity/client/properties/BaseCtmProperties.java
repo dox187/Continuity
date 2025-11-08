@@ -46,8 +46,10 @@ import net.minecraft.world.biome.Biome;
 public class BaseCtmProperties implements CtmProperties {
 	public static final Identifier SPECIAL_SKIP_ID = ContinuityClient.asId("special/skip");
 	public static final Identifier SPECIAL_DEFAULT_ID = ContinuityClient.asId("special/default");
-	public static final SpriteIdentifier SPECIAL_SKIP_SPRITE_ID = TextureUtil.toSpriteId(SPECIAL_SKIP_ID);
-	public static final SpriteIdentifier SPECIAL_DEFAULT_SPRITE_ID = TextureUtil.toSpriteId(SPECIAL_DEFAULT_ID);
+	public static final SpriteIdentifier SPECIAL_SKIP_SPRITE_ID =
+			TextureUtil.toSpriteId(SPECIAL_SKIP_ID);
+	public static final SpriteIdentifier SPECIAL_DEFAULT_SPRITE_ID =
+			TextureUtil.toSpriteId(SPECIAL_DEFAULT_ID);
 
 	protected static final int DIRECTION_AMOUNT = Direction.values().length;
 
@@ -78,7 +80,8 @@ public class BaseCtmProperties implements CtmProperties {
 	protected Set<SpriteIdentifier> textureDependencies;
 	protected List<SpriteIdentifier> spriteIds;
 
-	public BaseCtmProperties(Properties properties, Identifier resourceId, ResourcePack pack, int packPriority, ResourceManager resourceManager, String method) {
+	public BaseCtmProperties(Properties properties, Identifier resourceId, ResourcePack pack,
+			int packPriority, ResourceManager resourceManager, String method) {
 		this.properties = properties;
 		this.resourceId = resourceId;
 		this.packId = pack.getId();
@@ -97,9 +100,7 @@ public class BaseCtmProperties implements CtmProperties {
 
 	// TODO: sorting API using Comparator
 	/*
-	-1 this < o
-	0 this == o
-	1 this > o
+	 * -1 this < o 0 this == o 1 this > o
 	 */
 	@Override
 	public int compareTo(@NotNull CtmProperties o) {
@@ -135,14 +136,16 @@ public class BaseCtmProperties implements CtmProperties {
 	}
 
 	protected void parseMatchTiles() {
-		matchTilesSet = PropertiesParsingHelper.parseMatchTiles(properties, "matchTiles", resourceId, packId);
+		matchTilesSet = PropertiesParsingHelper.parseMatchTiles(properties, "matchTiles",
+				resourceId, packId);
 		if (matchTilesSet != null && matchTilesSet.isEmpty()) {
 			valid = false;
 		}
 	}
 
 	protected void parseMatchBlocks() {
-		matchBlocksPredicate = PropertiesParsingHelper.parseBlockStates(properties, "matchBlocks", resourceId, packId);
+		matchBlocksPredicate = PropertiesParsingHelper.parseBlockStates(properties, "matchBlocks",
+				resourceId, packId);
 		if (matchBlocksPredicate == PropertiesParsingHelper.EMPTY_BLOCK_STATE_PREDICATE) {
 			valid = false;
 		}
@@ -167,7 +170,9 @@ public class BaseCtmProperties implements CtmProperties {
 
 	protected void validateMatches() {
 		if (matchTilesSet == null && matchBlocksPredicate == null) {
-			ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "No tile or block matches provided in file '" + resourceId + "' in pack '" + packId + "'");
+			// COMMENTED OUT - Parsing time frequency errors
+			// ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "No tile or block matches
+			// provided in file '" + resourceId + "' in pack '" + packId + "'");
 			valid = false;
 		}
 	}
@@ -175,7 +180,9 @@ public class BaseCtmProperties implements CtmProperties {
 	protected void parseTiles() {
 		String tilesStr = properties.getProperty("tiles");
 		if (tilesStr == null) {
-			ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "No 'tiles' value provided in file '" + resourceId + "' in pack '" + packId + "'");
+			// COMMENTED OUT - Parsing time frequency errors
+			// ContinuityClient.LOGGER.error(ContinuityClient.LOG_PREFIX + "No 'tiles' value
+			// provided in file '" + resourceId + "' in pack '" + packId + "'");
 			valid = false;
 			return;
 		}
@@ -208,13 +215,20 @@ public class BaseCtmProperties implements CtmProperties {
 							if (min <= max) {
 								try {
 									for (int tile = min; tile <= max; tile++) {
-										listBuilder.add(resourceId.withPath(basePath + tile + ".png"));
+										listBuilder
+												.add(resourceId.withPath(basePath + tile + ".png"));
 									}
 								} catch (InvalidIdentifierException e) {
-									ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'tiles' element '" + tileStr + "' at index " + i + " in file '" + resourceId + "' in pack '" + packId + "'", e);
+									// COMMENTED OUT - Parsing time frequency warnings
+									// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX +
+									// "Invalid 'tiles' element '" + tileStr + "' at index " + i + "
+									// in file '" + resourceId + "' in pack '" + packId + "'", e);
 								}
 							} else {
-								ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'tiles' element '" + tileStr + "' at index " + i + " in file '" + resourceId + "' in pack '" + packId + "'");
+								// COMMENTED OUT - Parsing time frequency warnings
+								// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX +
+								// "Invalid 'tiles' element '" + tileStr + "' at index " + i + " in
+								// file '" + resourceId + "' in pack '" + packId + "'");
 							}
 							continue;
 						} catch (NumberFormatException e) {
@@ -259,7 +273,8 @@ public class BaseCtmProperties implements CtmProperties {
 						} else {
 							if (!path.contains("/")) {
 								path = "textures/block/" + path;
-							} else if (!path.startsWith("textures/") && !path.startsWith("optifine/")) {
+							} else if (!path.startsWith("textures/")
+									&& !path.startsWith("optifine/")) {
 								path = "textures/" + path;
 							}
 						}
@@ -271,11 +286,17 @@ public class BaseCtmProperties implements CtmProperties {
 						try {
 							listBuilder.add(Identifier.of(namespace, path));
 						} catch (InvalidIdentifierException e) {
-							ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'tiles' element '" + tileStr + "' at index " + i + " in file '" + resourceId + "' in pack '" + packId + "'", e);
+							// COMMENTED OUT - Parsing time frequency warnings
+							// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid
+							// 'tiles' element '" + tileStr + "' at index " + i + " in file '" +
+							// resourceId + "' in pack '" + packId + "'", e);
 						}
 					}
 				} else {
-					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'tiles' element '" + tileStr + "' at index " + i + " in file '" + resourceId + "' in pack '" + packId + "'");
+					// COMMENTED OUT - Parsing time frequency warnings
+					// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'tiles'
+					// element '" + tileStr + "' at index " + i + " in file '" + resourceId + "' in
+					// pack '" + packId + "'");
 				}
 			}
 
@@ -313,7 +334,10 @@ public class BaseCtmProperties implements CtmProperties {
 					try {
 						faces.add(Direction.valueOf(faceStr1));
 					} catch (IllegalArgumentException e) {
-						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown 'faces' element '" + faceStr + "' at index " + i + " in file '" + resourceId + "' in pack '" + packId + "'");
+						// COMMENTED OUT - Parsing time frequency warnings
+						// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown
+						// 'faces' element '" + faceStr + "' at index " + i + " in file '" +
+						// resourceId + "' in pack '" + packId + "'");
 					}
 				}
 			}
@@ -346,29 +370,33 @@ public class BaseCtmProperties implements CtmProperties {
 			if (biomeStrs.length != 0) {
 				ObjectOpenHashSet<BiomeHolder> biomeHolderSet = new ObjectOpenHashSet<>();
 
-			for (int i = 0; i < biomeStrs.length; i++) {
-				String biomeStr = biomeStrs[i];
-				if (biomeStr.isEmpty()) {
-					continue;
-				}
-
-				// Strip individual ! prefix if present (per-biome negation)
-				// Note: This is handled at the collection level by negate flag,
-				// but individual biomes might have ! in malformed properties files
-				if (biomeStr.charAt(0) == '!') {
-					biomeStr = biomeStr.substring(1);
+				for (int i = 0; i < biomeStrs.length; i++) {
+					String biomeStr = biomeStrs[i];
 					if (biomeStr.isEmpty()) {
 						continue;
 					}
-				}
 
-				try {
-					Identifier biomeId = Identifier.of(biomeStr.toLowerCase(Locale.ROOT));
-					biomeHolderSet.add(BiomeHolderManager.getOrCreateHolder(biomeId));
-				} catch (InvalidIdentifierException e) {
-					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'biomes' element '" + biomeStr + "' at index " + i + " in file '" + resourceId + "' in pack '" + packId + "'", e);
+					// Strip individual ! prefix if present (per-biome negation)
+					// Note: This is handled at the collection level by negate flag,
+					// but individual biomes might have ! in malformed properties files
+					if (biomeStr.charAt(0) == '!') {
+						biomeStr = biomeStr.substring(1);
+						if (biomeStr.isEmpty()) {
+							continue;
+						}
+					}
+
+					try {
+						Identifier biomeId = Identifier.of(biomeStr.toLowerCase(Locale.ROOT));
+						biomeHolderSet.add(BiomeHolderManager.getOrCreateHolder(biomeId));
+					} catch (InvalidIdentifierException e) {
+						// COMMENTED OUT - Parsing time frequency warnings
+						// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid
+						// 'biomes' element '" + biomeStr + "' at index " + i + " in file '" +
+						// resourceId + "' in pack '" + packId + "'", e);
+					}
 				}
-			}				if (!biomeHolderSet.isEmpty()) {
+				if (!biomeHolderSet.isEmpty()) {
 					biomeHolderSet.trim();
 					biomePredicate = new BiomeSetPredicate(biomeHolderSet);
 					if (negate) {
@@ -432,14 +460,16 @@ public class BaseCtmProperties implements CtmProperties {
 				} else if (parts.length == 1) {
 					String heightStr1 = heightStr.replaceAll("[()]", "");
 					if (!heightStr1.isEmpty()) {
-						int separatorIndex = heightStr1.indexOf('-', heightStr1.charAt(0) == '-' ? 1 : 0);
+						int separatorIndex =
+								heightStr1.indexOf('-', heightStr1.charAt(0) == '-' ? 1 : 0);
 						try {
 							if (separatorIndex == -1) {
 								int height = Integer.parseInt(heightStr1);
 								predicateList.add(y -> y == height);
 							} else {
 								int min = Integer.parseInt(heightStr1.substring(0, separatorIndex));
-								int max = Integer.parseInt(heightStr1.substring(separatorIndex + 1));
+								int max =
+										Integer.parseInt(heightStr1.substring(separatorIndex + 1));
 								if (min < max) {
 									predicateList.add(y -> y >= min && y <= max);
 								} else if (min > max) {
@@ -454,9 +484,11 @@ public class BaseCtmProperties implements CtmProperties {
 						}
 					}
 				}
-				ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'heights' element '" + heightStr + "' at index " + i + " in file '" + resourceId + "' in pack '" + packId + "'");
+				// COMMENTED OUT - Parsing time frequency warnings
+				// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'heights'
+				// element '" + heightStr + "' at index " + i + " in file '" + resourceId + "' in
+				// pack '" + packId + "'");
 			}
-
 			if (!predicateList.isEmpty()) {
 				IntPredicate[] predicateArray = predicateList.toArray(IntPredicate[]::new);
 				heightPredicate = y -> {
@@ -488,7 +520,10 @@ public class BaseCtmProperties implements CtmProperties {
 					try {
 						min = Integer.parseInt(minHeightStr.trim());
 					} catch (NumberFormatException e) {
-						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'minHeight' value '" + minHeightStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+						// COMMENTED OUT - Parsing time frequency warnings
+						// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid
+						// 'minHeight' value '" + minHeightStr + "' in file '" + resourceId + "' in
+						// pack '" + packId + "'");
 						hasMinHeight = false;
 					}
 				}
@@ -496,7 +531,10 @@ public class BaseCtmProperties implements CtmProperties {
 					try {
 						max = Integer.parseInt(maxHeightStr.trim());
 					} catch (NumberFormatException e) {
-						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'maxHeight' value '" + minHeightStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+						// COMMENTED OUT - Parsing time frequency warnings
+						// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid
+						// 'maxHeight' value '" + minHeightStr + "' in file '" + resourceId + "' in
+						// pack '" + packId + "'");
 						hasMaxHeight = false;
 					}
 				}
@@ -557,7 +595,8 @@ public class BaseCtmProperties implements CtmProperties {
 			patternStr = patternStr.replace("?", "\\E.\\Q");
 			patternStr = patternStr.replace("*", "\\E.*\\Q");
 		}
-		Pattern pattern = Pattern.compile(patternStr, caseInsensitive ? Pattern.CASE_INSENSITIVE : 0);
+		Pattern pattern =
+				Pattern.compile(patternStr, caseInsensitive ? Pattern.CASE_INSENSITIVE : 0);
 		blockEntityNamePredicate = blockEntityName -> pattern.matcher(blockEntityName).matches();
 	}
 
@@ -579,7 +618,8 @@ public class BaseCtmProperties implements CtmProperties {
 
 		String[] conditionStrs = conditionsStr.trim().split("\\|");
 		if (conditionStrs.length != 0) {
-			DefaultResourcePack defaultPack = MinecraftClient.getInstance().getDefaultResourcePack();
+			DefaultResourcePack defaultPack =
+					MinecraftClient.getInstance().getDefaultResourcePack();
 
 			for (int i = 0; i < conditionStrs.length; i++) {
 				String conditionStr = conditionStrs[i];
@@ -594,10 +634,13 @@ public class BaseCtmProperties implements CtmProperties {
 					try {
 						resourceId = Identifier.of(resourceStr);
 					} catch (InvalidIdentifierException e) {
-						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid resource '" + resourceStr + "' in 'resourceCondition' element '" + conditionStr + "' at index " + i + " in file '" + this.resourceId + "' in pack '" + packId + "'", e);
+						// COMMENTED OUT - Parsing time frequency warnings
+						// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid
+						// resource '" + resourceStr + "' in 'resourceCondition' element '" +
+						// conditionStr + "' at index " + i + " in file '" + this.resourceId + "' in
+						// pack '" + packId + "'", e);
 						continue;
 					}
-
 					String packStr;
 					if (parts.length > 1) {
 						packStr = parts[1];
@@ -606,22 +649,33 @@ public class BaseCtmProperties implements CtmProperties {
 					}
 
 					if (packStr == null || packStr.equals("default")) {
-						Optional<Resource> optionalResource = resourceManager.getResource(resourceId);
-						if (optionalResource.isPresent() && optionalResource.get().getPack() != defaultPack) {
+						Optional<Resource> optionalResource =
+								resourceManager.getResource(resourceId);
+						if (optionalResource.isPresent()
+								&& optionalResource.get().getPack() != defaultPack) {
 							valid = false;
 							break;
 						}
 					} else if (packStr.equals("programmer_art")) {
-						Optional<Resource> optionalResource = resourceManager.getResource(resourceId);
-						if (optionalResource.isPresent() && !optionalResource.get().getPack().getId().equals("programmer_art")) {
+						Optional<Resource> optionalResource =
+								resourceManager.getResource(resourceId);
+						if (optionalResource.isPresent() && !optionalResource.get().getPack()
+								.getId().equals("programmer_art")) {
 							valid = false;
 							break;
 						}
 					} else {
-						ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown pack '" + packStr + "' in 'resourceCondition' element '" + conditionStr + "' at index " + i + " in file '" + this.resourceId + "' in pack '" + packId + "'");
+						// COMMENTED OUT - Parsing time frequency warnings
+						// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown pack
+						// '" + packStr + "' in 'resourceCondition' element '" + conditionStr + "'
+						// at index " + i + " in file '" + this.resourceId + "' in pack '" + packId
+						// + "'");
 					}
 				} else {
-					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'resourceCondition' element '" + conditionStr + "' at index " + i + " in file '" + resourceId + "' in pack '" + packId + "'");
+					// COMMENTED OUT - Parsing time frequency warnings
+					// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid
+					// 'resourceCondition' element '" + conditionStr + "' at index " + i + " in file
+					// '" + resourceId + "' in pack '" + packId + "'");
 				}
 			}
 		}
@@ -734,7 +788,8 @@ public class BaseCtmProperties implements CtmProperties {
 
 	public static <T extends BaseCtmProperties> Factory<T> wrapFactory(Factory<T> factory) {
 		return (properties, resourceId, pack, packPriority, resourceManager, method) -> {
-			T ctmProperties = factory.createProperties(properties, resourceId, pack, packPriority, resourceManager, method);
+			T ctmProperties = factory.createProperties(properties, resourceId, pack, packPriority,
+					resourceManager, method);
 			if (ctmProperties == null) {
 				return null;
 			}

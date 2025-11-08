@@ -18,21 +18,16 @@ import net.minecraft.world.BlockRenderView;
 
 @Mixin(BlockModelRenderer.class)
 public class BlockModelRendererMixin {
-	
+
 	// Also hook the static method to see if it's used (for items/entities)
-	@Inject(
-		method = "render(Lnet/minecraft/client/util/math/MatrixStack$Entry;Lnet/minecraft/client/render/VertexConsumer;Lnet/minecraft/client/render/model/BlockStateModel;FFFII)V", 
-		at = @At("HEAD")
-	)
-	private static void continuity$beforeStaticRender(
-		MatrixStack.Entry entry,
-		VertexConsumer vertexConsumer,
-		net.minecraft.client.render.model.BlockStateModel model,
-		float red, float green, float blue,
-		int light, int overlay,
-		CallbackInfo ci
-	) {
-		ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX + 
-			"STATIC render() called! Model: {} (no world context)", model.getClass().getSimpleName());
+	@Inject(method = "render(Lnet/minecraft/client/util/math/MatrixStack$Entry;Lnet/minecraft/client/render/VertexConsumer;Lnet/minecraft/client/render/model/BlockStateModel;FFFII)V",
+			at = @At("HEAD"))
+	private static void continuity$beforeStaticRender(MatrixStack.Entry entry,
+			VertexConsumer vertexConsumer, net.minecraft.client.render.model.BlockStateModel model,
+			float red, float green, float blue, int light, int overlay, CallbackInfo ci) {
+		// COMMENTED OUT - High frequency render call (per block)
+		// ContinuityClient.LOGGER.info(ContinuityClient.LOG_PREFIX +
+		// "STATIC render() called! Model: {} (no world context)",
+		// model.getClass().getSimpleName());
 	}
 }

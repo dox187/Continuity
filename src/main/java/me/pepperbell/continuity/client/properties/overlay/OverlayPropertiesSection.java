@@ -50,7 +50,9 @@ public class OverlayPropertiesSection {
 		} catch (NumberFormatException e) {
 			//
 		}
-		ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'tintIndex' value '" + tintIndexStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+		// COMMENTED OUT - Parsing time frequency warnings
+		// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'tintIndex' value '"
+		// + tintIndexStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
 	}
 
 	protected void parseTintBlock() {
@@ -69,18 +71,26 @@ public class OverlayPropertiesSection {
 					blockId = Identifier.of(parts[0], parts[1]);
 				}
 			} catch (InvalidIdentifierException e) {
-				ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'tintBlock' value '" + tintBlockStr + "' in file '" + resourceId + "' in pack '" + packId + "'", e);
+				// COMMENTED OUT - Parsing time frequency warnings
+				// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'tintBlock'
+				// value '" + tintBlockStr + "' in file '" + resourceId + "' in pack '" + packId +
+				// "'", e);
 				return;
 			}
-
 			if (Registries.BLOCK.containsId(blockId)) {
 				Block block = Registries.BLOCK.get(blockId);
 				tintBlock = block.getDefaultState();
 			} else {
-				ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown block '" + blockId + "' in 'tintBlock' value '" + tintBlockStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+				// COMMENTED OUT - Parsing time frequency warnings
+				// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown block '" +
+				// blockId + "' in 'tintBlock' value '" + tintBlockStr + "' in file '" + resourceId
+				// + "' in pack '" + packId + "'");
 			}
 		} else {
-			ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'tintBlock' value '" + tintBlockStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+			// COMMENTED OUT - Parsing time frequency warnings
+			// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid 'tintBlock' value
+			// '"
+			// + tintBlockStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
 		}
 	}
 
@@ -97,7 +107,12 @@ public class OverlayPropertiesSection {
 			case "translucent" -> layer = BlockRenderLayer.TRANSLUCENT;
 			case "solid" -> layer = BlockRenderLayer.SOLID;
 			case "tripwire" -> layer = BlockRenderLayer.TRIPWIRE;
-			default -> ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Unknown 'layer' value '" + layerStr + " in file '" + resourceId + "' in pack '" + packId + "'");
+			default -> {
+				// COMMENTED OUT - Parsing time frequency warnings
+				// ContinuityClient.LOGGER
+				// .warn(ContinuityClient.LOG_PREFIX + "Unknown 'layer' value '" + layerStr
+				// + " in file '" + resourceId + "' in pack '" + packId + "'");
+			}
 		}
 	}
 

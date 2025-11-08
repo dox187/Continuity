@@ -16,12 +16,17 @@ public class CompactConnectingCtmProperties extends OrientedConnectingCtmPropert
 	@Nullable
 	protected Int2IntMap tileReplacementMap;
 
-	public CompactConnectingCtmProperties(Properties properties, Identifier resourceId, ResourcePack pack, int packPriority, ResourceManager resourceManager, String method, OrientationMode defaultOrientationMode) {
-		super(properties, resourceId, pack, packPriority, resourceManager, method, defaultOrientationMode);
+	public CompactConnectingCtmProperties(Properties properties, Identifier resourceId,
+			ResourcePack pack, int packPriority, ResourceManager resourceManager, String method,
+			OrientationMode defaultOrientationMode) {
+		super(properties, resourceId, pack, packPriority, resourceManager, method,
+				defaultOrientationMode);
 	}
 
-	public CompactConnectingCtmProperties(Properties properties, Identifier resourceId, ResourcePack pack, int packPriority, ResourceManager resourceManager, String method) {
-		this(properties, resourceId, pack, packPriority, resourceManager, method, OrientationMode.TEXTURE);
+	public CompactConnectingCtmProperties(Properties properties, Identifier resourceId,
+			ResourcePack pack, int packPriority, ResourceManager resourceManager, String method) {
+		this(properties, resourceId, pack, packPriority, resourceManager, method,
+				OrientationMode.TEXTURE);
 	}
 
 	@Override
@@ -49,12 +54,18 @@ public class CompactConnectingCtmProperties extends OrientedConnectingCtmPropert
 				try {
 					value = Integer.parseInt(valueStr);
 				} catch (NumberFormatException e) {
-					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + key + "' value '" + valueStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+					// COMMENTED OUT - Parsing time frequency warnings
+					// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + key
+					// + "' value '" + valueStr + "' in file '" + resourceId + "' in pack '" +
+					// packId + "'");
 					continue;
 				}
 				// TODO: deduplicate code
 				if (value < 0) {
-					ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + key + "' value '" + valueStr + "' in file '" + resourceId + "' in pack '" + packId + "'");
+					// COMMENTED OUT - Parsing time frequency warnings
+					// ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX + "Invalid '" + key
+					// + "' value '" + valueStr + "' in file '" + resourceId + "' in pack '" +
+					// packId + "'");
 					continue;
 				}
 
