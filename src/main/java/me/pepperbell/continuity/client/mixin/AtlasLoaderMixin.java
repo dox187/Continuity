@@ -45,10 +45,8 @@ abstract class AtlasLoaderMixin {
 	// Track which atlas we're currently processing via thread-local storage
 	private static final ThreadLocal<Identifier> CURRENT_ATLAS_ID = new ThreadLocal<>();
 	
-	// Store atlas ID in the instance for access during loadSources
-	private Identifier continuity$atlasId;
-
-	/**
+	// Store atlas ID per instance using a map since we can't store it in instance field before super()
+	private static final Map<Object, Identifier> INSTANCE_ATLAS_MAP = new java.util.concurrent.ConcurrentHashMap<>();	/**
 	 * Log which atlas is being created and set current atlas ID
 	 */
 	@Inject(method = "of(Lnet/minecraft/resource/ResourceManager;Lnet/minecraft/util/Identifier;)Lnet/minecraft/client/texture/atlas/AtlasLoader;",
@@ -136,10 +134,12 @@ abstract class AtlasLoaderMixin {
 	 * Capture the atlas ID from ThreadLocal during constructor execution
 	 */
 	@Inject(method = "<init>(Ljava/util/List;)V", at = @At("HEAD"))
-	private void continuity$captureAtlasId(CallbackInfo ci) {
-		this.continuity$atlasId = CURRENT_ATLAS_ID.get();
+	private static void continuity$captureAtlasId(List<AtlasSource> sources, CallbackInfo ci) {
+		Identifier atlasId = CURRENT_ATLAS_ID.get();
+		// Store atlas ID using the target object (will be available after this method)
+		// We'll map it in the TAIL injection when the instance is fully constructed
 		ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
-				+ "AtlasLoaderMixin: Captured atlas ID in constructor: {}", this.continuity$atlasId);
+				+ "AtlasLoaderMixin: Capturing atlas ID in constructor HEAD: {}", atlasId);
 	}
 
 	/**
@@ -148,6 +148,14 @@ abstract class AtlasLoaderMixin {
 	 */
 	@Inject(method = "<init>(Ljava/util/List;)V", at = @At("TAIL"))
 	private void continuity$cleanupContextAfterInit(CallbackInfo ci) {
+		// Store the atlas ID for this instance now that it's fully constructed
+		Identifier atlasId = CURRENT_ATLAS_ID.get();
+		if (atlasId != null) {
+			INSTANCE_ATLAS_MAP.put(this, atlasId);
+			ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
+					+ "AtlasLoaderMixin: Stored atlas ID {} for instance {}", atlasId, this.getClass().getSimpleName());
+		}
+		
 		// Extra safety cleanup (context should already be cleared by afterLoadSources)
 		// This is here just to ensure cleanup happens even if the other injection fails
 		AtlasLoaderInitContext.THREAD_LOCAL.set(null);
@@ -277,7 +285,12 @@ abstract class AtlasLoaderMixin {
 			CallbackInfoReturnable<List<Function<SpriteOpener, SpriteContents>>> cir,
 			Map<Identifier, AtlasSource.SpriteRegion> suppliers) {
 
-		Identifier currentAtlasId = this.continuity$atlasId;
+		Identifier currentAtlasId = INSTANCE_ATLAS_MAP.get(this);
+		if (currentAtlasId == null) {
+			// Fallback to ThreadLocal if instance mapping failed
+			currentAtlasId = CURRENT_ATLAS_ID.get();
+		}
+		
 		ContinuityClient.LOGGER.info(
 				ContinuityClient.LOG_PREFIX
 						+ "AtlasLoaderMixin: Processing {} sprite suppliers for atlas {}",
@@ -312,20 +325,21 @@ abstract class AtlasLoaderMixin {
 			Map<Identifier, AtlasSource.SpriteRegion> emissiveSuppliers =
 					new Object2ObjectOpenHashMap<>();
 			Map<Identifier, Identifier> emissiveIdMap = new Object2ObjectOpenHashMap<>();
-			
+
 			// Enhanced bidirectional emissive detection
 			suppliers.forEach((id, supplier) -> {
 				String path = id.getPath();
-				
-				// Case 1: Base texture -> Look for emissive variant (base_texture -> base_texture_e)
+
+				// Case 1: Base texture -> Look for emissive variant (base_texture ->
+				// base_texture_e)
 				if (!path.endsWith(emissiveSuffix)) {
 					Identifier emissiveId = id.withPath(path + emissiveSuffix);
-					
+
 					// Check if emissive variant exists in suppliers (already loaded)
 					if (suppliers.containsKey(emissiveId)) {
 						emissiveIdMap.put(id, emissiveId);
 						ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
-								+ "AtlasLoaderMixin: Found existing emissive variant {} for base {}", 
+								+ "AtlasLoaderMixin: Found existing emissive variant {} for base {}",
 								emissiveId, id);
 					} else {
 						// Try to find emissive variant as a resource file
@@ -339,22 +353,24 @@ abstract class AtlasLoaderMixin {
 									opener -> opener.loadSprite(emissiveId, resource));
 							emissiveIdMap.put(id, emissiveId);
 							ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
-									+ "AtlasLoaderMixin: Loading emissive resource {} for base {}", 
+									+ "AtlasLoaderMixin: Loading emissive resource {} for base {}",
 									emissiveLocation, id);
 						}
 					}
 				}
-				// Case 2: Emissive texture -> Look for base texture (base_texture_e -> base_texture)
+				// Case 2: Emissive texture -> Look for base texture (base_texture_e ->
+				// base_texture)
 				else {
 					// Remove the emissive suffix to get the base texture ID
 					String basePath = path.substring(0, path.length() - emissiveSuffix.length());
 					Identifier baseId = id.withPath(basePath);
-					
+
 					// Check if base texture exists in suppliers
 					if (suppliers.containsKey(baseId)) {
 						emissiveIdMap.put(baseId, id);
-						ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
-								+ "AtlasLoaderMixin: Found base texture {} for emissive {}", 
+						ContinuityClient.LOGGER.debug(
+								ContinuityClient.LOG_PREFIX
+										+ "AtlasLoaderMixin: Found base texture {} for emissive {}",
 								baseId, id);
 					} else {
 						// Try to find base texture as a resource file and load it
@@ -368,20 +384,20 @@ abstract class AtlasLoaderMixin {
 							suppliers.put(baseId, opener -> opener.loadSprite(baseId, resource));
 							emissiveIdMap.put(baseId, id);
 							ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
-									+ "AtlasLoaderMixin: Loading base resource {} for emissive {}", 
+									+ "AtlasLoaderMixin: Loading base resource {} for emissive {}",
 									baseLocation, id);
 						} else {
 							ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
-									+ "AtlasLoaderMixin: No base texture found for emissive {}, treating as standalone", 
+									+ "AtlasLoaderMixin: No base texture found for emissive {}, treating as standalone",
 									id);
 						}
 					}
 				}
 			});
-			
+
 			// Add any new emissive suppliers we discovered
 			suppliers.putAll(emissiveSuppliers);
-			
+
 			if (!emissiveIdMap.isEmpty()) {
 				// Store in global registry for EmissiveTextureManager and EmissiveBlockModelPart
 				// access
@@ -418,5 +434,8 @@ abstract class AtlasLoaderMixin {
 					+ "AtlasLoaderMixin: Skipping emissive processing for atlas {} (not in allowed list)",
 					currentAtlasId);
 		}
+		
+		// Clean up instance mapping to prevent memory leaks
+		INSTANCE_ATLAS_MAP.remove(this);
 	}
 }
