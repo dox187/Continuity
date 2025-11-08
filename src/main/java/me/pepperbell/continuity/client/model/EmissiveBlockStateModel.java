@@ -9,18 +9,21 @@ import net.minecraft.client.render.model.BlockStateModel;
 import net.minecraft.util.math.random.Random;
 
 /**
- * BlockStateModel wrapper that adds emissive texture support.
- * Replaces EmissiveBakedModel for Minecraft 1.21.10+
+ * BlockStateModel wrapper that adds emissive texture support. Replaces EmissiveBakedModel for
+ * Minecraft 1.21.10+
  * 
- * When enabled, wraps each BlockModelPart to detect and add emissive texture variants
- * for quads that have corresponding emissive sprites.
+ * When enabled, wraps each BlockModelPart to detect and add emissive texture variants for quads
+ * that have corresponding emissive sprites.
  * 
  * @since 1.21.10 migration
  */
 public class EmissiveBlockStateModel extends WrappedBlockStateModel {
+	private final BlockState blockState;
+	private boolean partsProcessed = false;
 
-	public EmissiveBlockStateModel(BlockStateModel wrapped) {
+	public EmissiveBlockStateModel(BlockStateModel wrapped, BlockState blockState) {
 		super(wrapped);
+		this.blockState = blockState;
 	}
 
 	@Override
@@ -28,51 +31,53 @@ public class EmissiveBlockStateModel extends WrappedBlockStateModel {
 		// Get parts from wrapped model
 		wrapped.addParts(random, parts);
 
+		// Mark that we're processing parts for this block state
+		this.partsProcessed = true;
+
 		// Only process if emissive textures are enabled
 		if (!ContinuityConfig.INSTANCE.emissiveTextures.get()) {
+			me.pepperbell.continuity.client.ContinuityClient.LOGGER.debug(
+					me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX
+							+ "EmissiveBlockStateModel: Emissive textures disabled for block {}",
+					blockState);
 			return;
 		}
 
 		ModelObjectsContainer container = ModelObjectsContainer.get();
 		if (!container.featureStates.getEmissiveTexturesState().isEnabled()) {
+			me.pepperbell.continuity.client.ContinuityClient.LOGGER.debug(
+					me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX
+							+ "EmissiveBlockStateModel: Emissive feature disabled for block {}",
+					blockState);
 			return;
 		}
 
 		// Wrap each part to add emissive processing
-		// We need to extract BlockState somehow - this is a limitation we'll need to solve
-		// For now, we'll need to store it or get it from context
+		int wrappedPartsCount = 0;
 		for (int i = 0; i < parts.size(); i++) {
 			BlockModelPart part = parts.get(i);
-			// TODO: Need BlockState here - might need to be passed via ThreadLocal or context
-			// parts.set(i, new EmissiveBlockModelPart(part, state));
+			EmissiveBlockModelPart wrappedPart = new EmissiveBlockModelPart(part, blockState);
+			parts.set(i, wrappedPart);
+			wrappedPartsCount++;
 		}
+
+		me.pepperbell.continuity.client.ContinuityClient.LOGGER.info(
+				me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX
+						+ "EmissiveBlockStateModel: Successfully wrapped {} parts for block {} with emissive support",
+				wrappedPartsCount, blockState);
 	}
 
 	/**
-	 * Version that takes BlockState for proper emissive material determination.
-	 * This should be called from the model loading/wrapping system.
+	 * Gets the BlockState this model is wrapping for.
 	 */
-	public void addParts(Random random, List<BlockModelPart> parts, BlockState state) {
-		// Get parts from wrapped model  
-		wrapped.addParts(random, parts);
-
-		// Only process if emissive textures are enabled
-		if (!ContinuityConfig.INSTANCE.emissiveTextures.get()) {
-			return;
-		}
-
-		ModelObjectsContainer container = ModelObjectsContainer.get();
-		if (!container.featureStates.getEmissiveTexturesState().isEnabled()) {
-			return;
-		}
-
-		// Wrap each part to add emissive processing
-		for (int i = 0; i < parts.size(); i++) {
-			parts.set(i, new EmissiveBlockModelPart(parts.get(i), state));
-		}
+	public BlockState getBlockState() {
+		return blockState;
 	}
 
-	// Note: This model still needs to integrate with Fabric Rendering API
-	// The old emitBlockQuads/emitItemQuads methods need to be replaced with
-	// whatever the new Fabric API provides for BlockStateModel
+	/**
+	 * Returns true if parts have been processed by this emissive model.
+	 */
+	public boolean isPartsProcessed() {
+		return partsProcessed;
+	}
 }
