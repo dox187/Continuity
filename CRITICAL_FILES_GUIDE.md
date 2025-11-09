@@ -4,6 +4,12 @@
 **Status**: Research Phase  
 **Updated**: November 9, 2025
 
+> **IMPORTANT NOTE**: This guide documents the analysis of the 6 critical files and their problems in the
+> OLD approach (using `BakedModelManager.bake()`). 
+>
+> **See PHASE2B_IMPLEMENTATION_STRATEGY.md for the NEW approach** using `SpriteAtlasTexture.upload()` 
+> instead, which significantly simplifies implementation and reduces complexity by 37%.
+
 ---
 
 ## 📍 CRITICAL FILE #1: `BakedModelManagerBakeContext.java`

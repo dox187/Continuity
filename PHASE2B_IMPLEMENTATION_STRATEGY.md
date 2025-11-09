@@ -40,6 +40,9 @@ Simpler + more direct approach
 
 ## Implementation Roadmap (UPDATED)
 
+> **NOTE**: This roadmap describes the NEW injection point strategy using `SpriteAtlasTexture.upload()`.
+> The files listed reflect the optimal order for implementing the new approach.
+
 ### Phase 2B-1: Create SpriteAtlasTexture Mixin
 **File to Create**: `src/main/java/me/pepperbell/continuity/client/mixin/SpriteAtlasTextureMixin.java`
 
