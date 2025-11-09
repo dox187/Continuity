@@ -662,18 +662,25 @@ if (shouldWrapCtm || hasEmissives) {
 4. Processors registered in CtmPropertiesProcessorRegistry
 5. Registry stored in manager extension
 
-**New Behavior**:
-1. ContinuityClient.onInitializeClient() called
-2. CtmLoaderRegistry populated with loaders
-3. CtmPropertiesLoader.load() called on sprite loading
-4. Processors created on-demand
-5. Registry accessed directly
+**New Behavior (EXPECTED)**:
+1. ContinuityClient.onInitializeClient() called ✅
+2. CtmLoaderRegistry populated with loaders ✅
+3. CtmPropertiesLoader.load() called on sprite loading ❌ **NEVER HAPPENS**
+4. Processors created on-demand ❌ **NEVER HAPPENS**
+5. Registry accessed directly ✅ (but no processors available)
+
+**Actual Behavior (OBSERVED)**:
+- BakedModelManagerReloadExtension never created ❌
+- CtmPropertiesLoader.loadAllWithState() never called ❌
+- No resource pack scanning ❌
+- No .properties files parsed ❌
+- No quad processors instantiated ❌
 
 **Verification**:
-- [ ] All CTM methods loaded
-- [ ] Registry.get() returns loaders
-- [ ] Loaders create correct processors
-- [ ] No methods missing
+- [x] All CTM methods loaded ✅ (Loaders exist)
+- [x] Registry.get() returns loaders ✅ (Registry works)
+- ❌ Loaders create correct processors ❌ (Not called - no inputs)
+- ❌ No methods missing ✅ (All methods exist but unmapped)
 
 ---
 
@@ -771,21 +778,129 @@ Functionality redistributed to:
 - [x] JAR file created
 
 ### Runtime Verification (Phase 5 Testing)
-- [ ] Minecraft launches without crashes
-- [ ] No mixin errors (both fixes from Phase 4)
-- [ ] "Loaded X mixins" message appears
-- [ ] "Continuity initialized" message appears
-- [ ] No NullPointerException
+- [x] Minecraft launches without crashes ✅ SUCCESS
+- [x] No mixin errors (both fixes from Phase 4) ✅ SUCCESS
+- [x] "Loaded X mixins" message appears ✅ SUCCESS
+- [x] "[Continuity] Initialization started" appears ✅ SUCCESS
+- [x] "[Continuity] Registered 20+ CTM methods" appears ✅ SUCCESS
+- [x] No NullPointerException ✅ SUCCESS
+
+**CRITICAL FINDING**: None of these logs appear:
+- ❌ [Continuity] CtmPropertiesLoader.loadAll() - resource pack scan
+- ❌ [Continuity] Found CTM properties file
+- ❌ [Continuity] CtmPropertiesLoader.load() - file parsing
+- ❌ [Continuity] SpriteLoaderMixin.modifySupplier() called
+- ❌ [Continuity] SpriteLoaderMixin.modifyFunction() called
+- ❌ [Continuity] onReturnStitch() - sprite attachment
+
+**ROOT CAUSE**: `BakedModelManagerReloadExtension` NEVER INSTANTIATED
+- The class exists in code but is never created
+- `CtmPropertiesLoader.loadAllWithState()` is never called
+- CTM properties NEVER loaded from resource packs
+- SpriteLoaderLoadContext NEVER set in thread-local
+
+---
+
+## Part 9: PHASE 5 Implementation Results (November 9, 2025)
+
+### Test Execution Status: ✅ PARTIAL SUCCESS
+
+**Implementation Completed**:
+- ✅ Created `CtmResourceReloadListener.java`
+- ✅ Registered listener in `ContinuityClient.onInitializeClient()`
+- ✅ Updated `BakedModelManagerReloadExtension` for 1.21.10 API
+- ✅ Enhanced `SpriteAtlasTextureMixin` to call extension methods
+- ✅ Build successful - 0 compilation errors
+
+### Runtime Test Results: NEW DISCOVERY! ✅
+
+**BREAKTHROUGH**: CTM Property Loader Now Executes!
+
+```
+[13:58:44] [Render thread/INFO]: [Continuity] CtmResourceReloadListener registered
+[13:58:54] [Render thread/INFO]: [Continuity] CtmResourceReloadListener.reload() - starting CTM initialization
+[13:58:54] [Render thread/INFO]: [Continuity] CtmPropertiesLoader.loadAll() - starting resource pack scan
+[13:58:54] [Render thread/INFO]: [Continuity] CtmPropertiesLoader.loadAll() - pack: vanilla (priority: 0)
+[13:58:54] [Render thread/INFO]: [Continuity] CtmPropertiesLoader.loadAll() - pack: fabric (priority: 1)
+```
+
+**Major Progress**: The resource reload listener IS being called and CTM properties ARE loading! ✅
+
+### Critical Issue Discovered: TIMING MISMATCH ❌
+
+**Problem Logs**:
+```
+[13:58:52] [Render thread/WARN]: [Continuity] BakedModelManagerReloadExtension is null! CTM will not work.
+[13:58:52] [Render thread/INFO]: [Continuity] Enabling ModelWrappingHandler - shouldWrapCtm: true, hasEmissives: false
+[13:58:52] [Render thread/INFO]: [Continuity] ModelWrappingHandler instance created - wrapCtm: true, wrapEmissive: false
+
+[13:58:53] [Render thread/WARN]: [Continuity] BakedModelManagerReloadExtension is null! CTM will not work.
+[13:58:53] [Render thread/INFO]: [Continuity] Enabling ModelWrappingHandler - shouldWrapCtm: true, hasEmissives: false
+[13:58:53] [Render thread/INFO]: [Continuity] ModelWrappingHandler instance created - wrapCtm: true, wrapEmissive: false
+```
+
+**Root Cause Analysis**:
+
+Timeline of events:
+```
+13:58:44 - ContinuityClient.onInitializeClient()
+           └─ CtmResourceReloadListener.init() - Listener registered
+
+13:58:50 - Resource Manager reload starts
+           └─ Multiple atlas uploads triggered
+
+13:58:52 - SpriteAtlasTextureMixin.onUpload() #1
+           └─ BakedModelManagerReloadExtensionHolder.get() returns NULL ❌
+           └─ Holder was never set yet
+
+13:58:53 - SpriteAtlasTextureMixin.onUpload() #2 
+           └─ BakedModelManagerReloadExtensionHolder.get() still NULL ❌
+           └─ Reload listener hasn't fired yet
+
+13:58:54 - CtmResourceReloadListener.reload() FIRES
+           └─ BakedModelManagerReloadExtension created ✅
+           └─ BakedModelManagerReloadExtensionHolder.set(extension) ✅
+           └─ CtmPropertiesLoader.loadAll() starts ✅
+           └─ BUT TOO LATE - atlases already uploaded
+```
+
+**Conclusion**: **RACE CONDITION** - SpriteAtlasTexture.upload() fires BEFORE resource reload listener completes
+
+### Phase 5 Test Verdict: REQUIRES TIMING FIX
+
+**What Works Now** ✅:
+- Listener registration
+- Listener triggering on resource reload
+- CTM properties loading pipeline
+- No compilation errors
+- No runtime crashes
+
+**What Doesn't Work Yet** ❌:
+- Quad processor registration (happens too late)
+- CTM textures on blocks (processors never created)
+- Synchronization between components
+
+**Next Phase Required**: Implement synchronization mechanism to ensure `BakedModelManagerReloadExtension` is available BEFORE sprite atlas upload injection fires.
+
+**Recommended Fix Options**:
+1. **Option A** - Delay atlas upload until after reload completes
+2. **Option B** - Initialize extension synchronously instead of during reload
+3. **Option C** - Create extension eagerly on first mixin access
+
+**Status**: 🔄 IMPLEMENTATION BLOCKED ON SYNCHRONIZATION FIX
+- Quad processors NEVER created/registered
 
 ### Functional Verification (Phase 5 Testing)
-- [ ] Resource pack loading works
-- [ ] CTM methods registered correctly
-- [ ] Stone blocks show connected texture
-- [ ] Glass panes show glass CTM
-- [ ] Random blocks vary texture
-- [ ] Overlay methods work
-- [ ] Emissive sprites work (if pack available)
-- [ ] Reload on resource pack change works
+- ❌ Resource pack loading works - **NOT IMPLEMENTED** (BakedModelManagerReloadExtension never called)
+- ❌ CTM methods registered correctly - **NOT IMPLEMENTED** (CTM properties loader never invoked)
+- ❌ Stone blocks show connected texture - **FAILS** (no quad processor available)
+- ❌ Glass panes show glass CTM - **FAILS** (no quad processor available)
+- ❌ Random blocks vary texture - **FAILS** (no quad processor available)
+- ❌ Overlay methods work - **FAILS** (no quad processor available)
+- ❌ Emissive sprites work - **NOT TESTED** (dependencies missing)
+- ❌ Reload on resource pack change works - **NOT TESTED** (reload handler never registered)
+
+**CONCLUSION**: All CTM functionality is **COMPLETELY NON-FUNCTIONAL** due to missing initialization of `BakedModelManagerReloadExtension`
 
 ### Performance Verification (Phase 5 Testing)
 - [ ] No noticeable lag when loading mods

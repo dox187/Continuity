@@ -33,3 +33,4 @@ bin/
 run/
 
 .lib_src/
+latest.log

@@ -13,7 +13,7 @@ import net.minecraft.client.render.model.BlockStateModel;
 
 public class ModelWrappingHandler {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Continuity/ModelWrapping");
-	
+
 	@Nullable
 	private static volatile ModelWrappingHandler instance;
 
@@ -36,7 +36,9 @@ public class ModelWrappingHandler {
 		}
 		instance = new ModelWrappingHandler(wrapCtm, wrapEmissive);
 		// PHASE 5 TEST: Model wrapping handler created
-		LOGGER.info("[Continuity] ModelWrappingHandler instance created - wrapCtm: {}, wrapEmissive: {}", wrapCtm, wrapEmissive);
+		LOGGER.info(
+				"[Continuity] ModelWrappingHandler instance created - wrapCtm: {}, wrapEmissive: {}",
+				wrapCtm, wrapEmissive);
 	}
 
 	public static void resetInstance() {
@@ -46,12 +48,14 @@ public class ModelWrappingHandler {
 	public BlockStateModel wrapBlock(BlockStateModel model, BlockState state) {
 		if (wrapCtm) {
 			// PHASE 5 TEST: Texture replacements still work (CTM applied)
-			LOGGER.debug("[Continuity] Wrapping block model with CTM processor: {}", state.getBlock());
+			LOGGER.debug("[Continuity] Wrapping block model with CTM processor: {}",
+					state.getBlock());
 			model = new CtmBlockStateModel(model, state);
 		}
 		if (wrapEmissive) {
 			// PHASE 5 TEST: Emissive sprites still attached to models
-			LOGGER.debug("[Continuity] Wrapping block model with emissive processor: {}", state.getBlock());
+			LOGGER.debug("[Continuity] Wrapping block model with emissive processor: {}",
+					state.getBlock());
 			model = new EmissiveBlockStateModel(model);
 		}
 		return model;
@@ -60,15 +64,16 @@ public class ModelWrappingHandler {
 	public static void init() {
 		// PHASE 5 TEST: Model wrapping handler initialization
 		LOGGER.info("[Continuity] Initializing ModelWrappingHandler via ModelLoadingPlugin");
-		
+
 		ModelLoadingPlugin.register(pluginCtx -> {
-			pluginCtx.modifyBlockModelAfterBake().register(ModelModifier.WRAP_LAST_PHASE, (model, ctx) -> {
-				ModelWrappingHandler wrappingHandler = getInstance();
-				if (wrappingHandler != null) {
-					return wrappingHandler.wrapBlock(model, ctx.state());
-				}
-				return model;
-			});
+			pluginCtx.modifyBlockModelAfterBake().register(ModelModifier.WRAP_LAST_PHASE,
+					(model, ctx) -> {
+						ModelWrappingHandler wrappingHandler = getInstance();
+						if (wrappingHandler != null) {
+							return wrappingHandler.wrapBlock(model, ctx.state());
+						}
+						return model;
+					});
 		});
 	}
 }

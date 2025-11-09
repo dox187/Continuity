@@ -63,6 +63,8 @@ public final class RenderUtil {
 		@Override
 		public void reload(ResourceManager manager) {
 			blockAtlasSpriteFinder = AtlasStorage.getBlockAtlas().spriteFinder();
+			ContinuityClient.LOGGER.info(
+					"[Continuity] RenderUtil.ReloadListener.reload() - sprite finder updated");
 		}
 
 		@Override

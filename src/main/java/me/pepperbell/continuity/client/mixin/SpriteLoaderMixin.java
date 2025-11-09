@@ -9,6 +9,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -31,6 +33,8 @@ import net.minecraft.util.Identifier;
 
 @Mixin(SpriteLoader.class)
 abstract class SpriteLoaderMixin {
+	private static final Logger LOGGER = LoggerFactory.getLogger("Continuity/SpriteLoader");
+
 	@Shadow
 	@Final
 	private Identifier id;
@@ -43,8 +47,12 @@ abstract class SpriteLoaderMixin {
 			index = 0)
 	private Supplier<List<Function<SpriteOpener, SpriteContents>>> continuity$modifySupplier(
 			Supplier<List<Function<SpriteOpener, SpriteContents>>> supplier) {
+		// PHASE 5 TEST: SpriteLoaderMixin.modifySupplier() called
+		LOGGER.debug("[Continuity] SpriteLoaderMixin.modifySupplier() - Atlas: {}", id);
+
 		SpriteLoaderLoadContext context = SpriteLoaderLoadContext.THREAD_LOCAL.get();
 		if (context != null) {
+			LOGGER.debug("[Continuity] SpriteLoaderLoadContext found for atlas: {}", id);
 			CompletableFuture<@Nullable Set<Identifier>> extraIdsFuture =
 					context.getExtraIdsFuture(id);
 			SpriteLoaderLoadContext.EmissiveControl emissiveControl =
@@ -77,14 +85,23 @@ abstract class SpriteLoaderMixin {
 			index = 0)
 	private Function<List<SpriteContents>, SpriteLoader.StitchResult> continuity$modifyFunction(
 			Function<List<SpriteContents>, SpriteLoader.StitchResult> function) {
+		// PHASE 5 TEST: SpriteLoaderMixin.modifyFunction() called
+		LOGGER.debug("[Continuity] SpriteLoaderMixin.modifyFunction() - Atlas: {}", id);
+
 		SpriteLoaderLoadContext context = SpriteLoaderLoadContext.THREAD_LOCAL.get();
 		if (context != null) {
+			LOGGER.debug(
+					"[Continuity] SpriteLoaderLoadContext found for modifyFunction - Atlas: {}",
+					id);
 			SpriteLoaderLoadContext.EmissiveControl emissiveControl =
 					context.getEmissiveControl(id);
 			if (emissiveControl != null) {
+				LOGGER.debug("[Continuity] EmissiveControl found - will process emissive sprites");
 				return spriteContentsList -> {
 					Map<Identifier, Identifier> emissiveIdMap = emissiveControl.getEmissiveIdMap();
 					if (emissiveIdMap != null) {
+						LOGGER.debug(
+								"[Continuity] Emissive sprite mapping available, attaching to stitch context");
 						SpriteLoaderStitchContext.THREAD_LOCAL.set(new SpriteLoaderStitchContext() {
 							@Override
 							public Map<Identifier, Identifier> getEmissiveIdMap() {
@@ -112,11 +129,19 @@ abstract class SpriteLoaderMixin {
 	private void continuity$onReturnStitch(List<SpriteContents> spriteContentsList,
 			int mipmapLevels, Executor executor,
 			CallbackInfoReturnable<SpriteLoader.StitchResult> cir) {
+		// PHASE 5 TEST: Stitch completed, emissive sprites should be attached
+		LOGGER.debug("[Continuity] SpriteLoaderMixin.onReturnStitch() called");
+
 		SpriteLoaderStitchContext context = SpriteLoaderStitchContext.THREAD_LOCAL.get();
 		if (context != null) {
+			LOGGER.debug(
+					"[Continuity] SpriteLoaderStitchContext available - processing emissive sprites");
 			Map<Identifier, Identifier> emissiveIdMap = context.getEmissiveIdMap();
 			Map<Identifier, Sprite> sprites =
 					((StitchResultExtension) (Object) cir.getReturnValue()).continuity$getSprites();
+			LOGGER.debug("[Continuity] Processing {} emissive sprite mappings",
+					emissiveIdMap.size());
+
 			emissiveIdMap.forEach((id, emissiveId) -> {
 				Sprite sprite = sprites.get(id);
 				if (sprite != null) {
@@ -124,9 +149,16 @@ abstract class SpriteLoaderMixin {
 					if (emissiveSprite != null) {
 						((SpriteExtension) sprite).continuity$setEmissiveSprite(emissiveSprite);
 						context.markHasEmissives();
+						LOGGER.debug("[Continuity] Attached emissive sprite: {} -> {}", id,
+								emissiveId);
+					} else {
+						LOGGER.debug("[Continuity] Emissive sprite not found: {}", emissiveId);
 					}
 				}
 			});
+		} else {
+			LOGGER.debug(
+					"[Continuity] No SpriteLoaderStitchContext - emissive sprites not processed");
 		}
 	}
 }

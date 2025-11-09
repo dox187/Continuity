@@ -8,9 +8,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import me.pepperbell.continuity.client.mixinterface.StitchResultExtension;
+import me.pepperbell.continuity.client.resource.BakedModelManagerReloadExtension;
+import me.pepperbell.continuity.client.resource.CtmResourceReloadListener;
 import me.pepperbell.continuity.client.resource.ModelWrappingHandler;
 import me.pepperbell.continuity.client.resource.SpriteLoaderStitchContext;
 import me.pepperbell.continuity.client.util.AtlasStorage;
+import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.texture.SpriteLoader;
 import net.minecraft.util.Identifier;
@@ -58,7 +62,7 @@ public abstract class SpriteAtlasTextureMixin {
         // Check if we have emissive textures for this atlas
         SpriteLoaderStitchContext context = SpriteLoaderStitchContext.THREAD_LOCAL.get();
         boolean hasEmissives = (context != null);
-        
+
         if (hasEmissives) {
             // PHASE 5 TEST: Emissive sprites attached to models
             LOGGER.debug("[Continuity] Emissive sprites detected for atlas: {}", id);
@@ -69,10 +73,50 @@ public abstract class SpriteAtlasTextureMixin {
         boolean shouldWrapCtm =
                 id.getNamespace().equals("minecraft") && id.getPath().contains("blocks");
 
+        // PHASE 5 FIX: Call beforeBake() and apply() to load CTM properties and create quad
+        // processors
+        if (shouldWrapCtm) {
+            BakedModelManagerReloadExtension extension =
+                    CtmResourceReloadListener.BakedModelManagerReloadExtensionHolder.get();
+
+            if (extension != null) {
+                LOGGER.info(
+                        "[Continuity] Calling BakedModelManagerReloadExtension.beforeBake() with sprite map");
+
+                // Get sprites from StitchResult
+                java.util.Map<Identifier, Sprite> sprites =
+                        ((StitchResultExtension) (Object) stitchResult).continuity$getSprites();
+
+                // Get missing sprite - need to shadow getMissingSprite() or use a known sprite
+                // For now, use null check in beforeBake
+                Sprite missingSprite = sprites.get(Identifier.of("minecraft", "missingno"));
+                if (missingSprite == null) {
+                    // Fallback: just use any sprite (will be replaced anyway)
+                    missingSprite = sprites.values().iterator().next();
+                }
+
+                // Call beforeBake with sprite map
+                extension.beforeBake(sprites, missingSprite);
+
+                LOGGER.info(
+                        "[Continuity] Calling BakedModelManagerReloadExtension.apply() to register quad processors");
+
+                // Register quad processors
+                extension.apply();
+
+                LOGGER.info("[Continuity] CTM quad processors registered successfully");
+            } else {
+                LOGGER.warn(
+                        "[Continuity] BakedModelManagerReloadExtension is null! CTM will not work.");
+            }
+        }
+
         // Enable model wrapping for CTM and/or emissive textures
         if (shouldWrapCtm || hasEmissives) {
             // PHASE 5 TEST: Model wrapping occurs during sprite atlas loading
-            LOGGER.info("[Continuity] Enabling ModelWrappingHandler - shouldWrapCtm: {}, hasEmissives: {}", shouldWrapCtm, hasEmissives);
+            LOGGER.info(
+                    "[Continuity] Enabling ModelWrappingHandler - shouldWrapCtm: {}, hasEmissives: {}",
+                    shouldWrapCtm, hasEmissives);
             ModelWrappingHandler.setInstance(shouldWrapCtm, hasEmissives);
         }
 
