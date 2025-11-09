@@ -88,6 +88,10 @@ public abstract class SpriteAtlasTextureMixin {
                 java.util.Map<Identifier, Sprite> sprites =
                         ((StitchResultExtension) (Object) stitchResult).continuity$getSprites();
 
+                LOGGER.info(
+                        "[Continuity] SpriteAtlasTextureMixin.upload() has {} sprites for blocks atlas",
+                        sprites.size());
+
                 // Get missing sprite - need to shadow getMissingSprite() or use a known sprite
                 // For now, use null check in beforeBake
                 Sprite missingSprite = sprites.get(Identifier.of("minecraft", "missingno"));
@@ -111,9 +115,43 @@ public abstract class SpriteAtlasTextureMixin {
                 LOGGER.info("[Continuity] CTM quad processors registered successfully");
             } else {
                 // Extension not ready yet (happens on initial game load)
-                // CTM properties will load on next resource reload (F3+T)
+                // Try synchronous loading as fallback for initial load scenario
                 LOGGER.debug(
-                        "[Continuity] CTM extension not ready during initial atlas upload. Will be available after next resource reload (F3+T)");
+                        "[Continuity] CTM extension not ready during initial atlas upload. Attempting synchronous property loading...");
+
+                if (coordinator.loadPropertiesSynchronously()) {
+                    // Synchronous loading succeeded, extension is now ready
+                    extension = coordinator.getExtension();
+                    if (extension != null) {
+                        LOGGER.info(
+                                "[Continuity] Synchronous property loading succeeded! Calling beforeBake() and apply()");
+
+                        // Get sprites from StitchResult
+                        java.util.Map<Identifier, Sprite> sprites =
+                                ((StitchResultExtension) (Object) stitchResult)
+                                        .continuity$getSprites();
+
+                        // Get missing sprite
+                        Sprite missingSprite = sprites.get(Identifier.of("minecraft", "missingno"));
+                        if (missingSprite == null) {
+                            missingSprite = sprites.values().iterator().next();
+                        }
+
+                        // Call beforeBake with sprite map
+                        extension.beforeBake(sprites, missingSprite);
+                        extension.apply();
+
+                        // Mark initialization as complete
+                        coordinator.markComplete();
+
+                        LOGGER.info(
+                                "[Continuity] Synchronous CTM initialization COMPLETE - connected textures will be visible!");
+                    }
+                } else {
+                    // Synchronous loading also failed
+                    LOGGER.debug(
+                            "[Continuity] Synchronous property loading failed or not available. CTM textures will load on next resource reload (F3+T)");
+                }
             }
         }
 

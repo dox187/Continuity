@@ -52,6 +52,18 @@ abstract class SpriteLoaderMixin {
 		LOGGER.debug("[Continuity] SpriteLoaderMixin.modifySupplier() - Atlas: {}", id);
 
 		SpriteLoaderLoadContext context = SpriteLoaderLoadContext.THREAD_LOCAL.get();
+
+		// PHASE 7: Fallback to global context if ThreadLocal is not set
+		if (context == null) {
+			context = me.pepperbell.continuity.client.resource.BakedModelManagerReloadExtension
+					.getGlobalContext();
+			if (context != null) {
+				LOGGER.info(
+						"[Continuity] PHASE 7: Using global context for atlas: {} (ThreadLocal was null)",
+						id);
+			}
+		}
+
 		if (context != null) {
 			LOGGER.debug("[Continuity] SpriteLoaderLoadContext found for atlas: {}", id);
 			CompletableFuture<@Nullable Set<Identifier>> extraIdsFuture =
@@ -60,18 +72,24 @@ abstract class SpriteLoaderMixin {
 					context.getEmissiveControl(id);
 			if (emissiveControl != null) {
 				return () -> {
-					AtlasLoaderInitContext.THREAD_LOCAL.set(extraIdsFuture::join);
+					AtlasLoaderInitContext initContext = extraIdsFuture::join;
+					AtlasLoaderInitContext.THREAD_LOCAL.set(initContext);
+					AtlasLoaderInitContext.GLOBAL_CONTEXT.set(initContext); // PHASE 7: Set global
 					AtlasLoaderLoadContext.THREAD_LOCAL.set(emissiveControl::setEmissiveIdMap);
 					List<Function<SpriteOpener, SpriteContents>> list = supplier.get();
 					AtlasLoaderInitContext.THREAD_LOCAL.set(null);
+					AtlasLoaderInitContext.GLOBAL_CONTEXT.set(null); // PHASE 7: Clear global
 					AtlasLoaderLoadContext.THREAD_LOCAL.set(null);
 					return list;
 				};
 			}
 			return () -> {
-				AtlasLoaderInitContext.THREAD_LOCAL.set(extraIdsFuture::join);
+				AtlasLoaderInitContext initContext = extraIdsFuture::join;
+				AtlasLoaderInitContext.THREAD_LOCAL.set(initContext);
+				AtlasLoaderInitContext.GLOBAL_CONTEXT.set(initContext); // PHASE 7: Set global
 				List<Function<SpriteOpener, SpriteContents>> list = supplier.get();
 				AtlasLoaderInitContext.THREAD_LOCAL.set(null);
+				AtlasLoaderInitContext.GLOBAL_CONTEXT.set(null); // PHASE 7: Clear global
 				return list;
 			};
 		}
@@ -133,13 +151,14 @@ abstract class SpriteLoaderMixin {
 		// PHASE 5 TEST: Stitch completed, emissive sprites should be attached
 		LOGGER.debug("[Continuity] SpriteLoaderMixin.onReturnStitch() called");
 
+		Map<Identifier, Sprite> sprites =
+				((StitchResultExtension) (Object) cir.getReturnValue()).continuity$getSprites();
+
 		SpriteLoaderStitchContext context = SpriteLoaderStitchContext.THREAD_LOCAL.get();
 		if (context != null) {
 			LOGGER.debug(
 					"[Continuity] SpriteLoaderStitchContext available - processing emissive sprites");
 			Map<Identifier, Identifier> emissiveIdMap = context.getEmissiveIdMap();
-			Map<Identifier, Sprite> sprites =
-					((StitchResultExtension) (Object) cir.getReturnValue()).continuity$getSprites();
 			LOGGER.debug("[Continuity] Processing {} emissive sprite mappings",
 					emissiveIdMap.size());
 

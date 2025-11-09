@@ -60,6 +60,7 @@ public class ContinuityClient implements ClientModInitializer {
 		ProcessingDataKeyRegistryImpl.INSTANCE.init();
 		BiomeHolderManager.init();
 		ProcessingDataKeys.init();
+
 		ModelWrappingHandler.init();
 		RenderUtil.ReloadListener.init();
 		CustomBlockLayers.ReloadListener.init();

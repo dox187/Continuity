@@ -39,6 +39,7 @@ public class CtmInitializationCoordinator {
 
     private State state = State.IDLE;
     private BakedModelManagerReloadExtension extension;
+    private ResourceManager lastResourceManager;
 
     /**
      * Signal that properties loading is complete. Allows atlas upload mixin to proceed.
@@ -102,6 +103,8 @@ public class CtmInitializationCoordinator {
             // Reset future for new reload cycle
             propertiesReady = new CompletableFuture<>();
             setState(State.LOADING_PROPERTIES);
+            // Store ResourceManager for potential use in initial load scenario
+            lastResourceManager = manager;
             log("Starting CTM properties reload from resource reload listener");
         }
 
@@ -127,6 +130,53 @@ public class CtmInitializationCoordinator {
         }).exceptionally(ex -> {
             // Handle property loading errors
             log("WARNING: Property loading failed: " + ex.getMessage());
+            propertiesReady.completeExceptionally(ex);
+            return null;
+        });
+    }
+
+    /**
+     * PHASE 7: Called by AtlasLoaderMixin during initial load (Quick Reload). Creates extension
+     * early when CtmResourceReloadListener hasn't run yet.
+     * 
+     * @param manager ResourceManager available from AtlasLoader.loadSources()
+     */
+    public void startReloadEarly(ResourceManager manager) {
+        synchronized (this) {
+            // If already initialized, don't create duplicate extension
+            if (state != State.IDLE) {
+                log("DEBUG: startReloadEarly() called but already initialized (state: " + state
+                        + ")");
+                return;
+            }
+
+            // Reset future for new reload cycle
+            propertiesReady = new CompletableFuture<>();
+            setState(State.LOADING_PROPERTIES);
+            lastResourceManager = manager;
+            log("PHASE 7: Starting EARLY CTM properties reload (initial load)");
+        }
+
+        // Create the extension - this triggers async property loading
+        extension = new BakedModelManagerReloadExtension(manager, Runnable::run);
+
+        // Set thread-local context for SpriteLoaderMixin
+        extension.setContext();
+        log("PHASE 7: Extension created early, context set");
+
+        // Get the async properties loading future
+        CompletableFuture<CtmPropertiesLoader.LoadingResult> ctmLoadingFuture =
+                extension.getCtmLoadingFuture();
+
+        // When properties loading completes, signal that we're ready
+        ctmLoadingFuture.thenRun(() -> {
+            synchronized (this) {
+                setState(State.PROPERTIES_LOADED);
+                propertiesReady.complete(null);
+                log("PHASE 7: Early properties loading complete");
+            }
+        }).exceptionally(ex -> {
+            log("PHASE 7: WARNING: Early property loading failed: " + ex.getMessage());
             propertiesReady.completeExceptionally(ex);
             return null;
         });
@@ -218,6 +268,7 @@ public class CtmInitializationCoordinator {
         synchronized (this) {
             setState(State.IDLE);
             extension = null;
+            // Don't clear lastResourceManager - keep it for potential initial load scenarios
             // Create new CompletableFuture for next reload
             // Complete any pending futures to prevent deadlocks
             if (!propertiesReady.isDone()) {
@@ -239,6 +290,83 @@ public class CtmInitializationCoordinator {
 
     private void log(String message) {
         LOGGER.info(THREAD_NAME + " " + message);
+    }
+
+    /**
+     * Set ResourceManager for initial load synchronous property loading.
+     * 
+     * Called from AtlasLoaderMixin BEFORE atlas creation to ensure ResourceManager is available
+     * when SpriteAtlasTextureMixin.onUpload() needs to load properties synchronously.
+     * 
+     * This is safe to call multiple times (will store the most recent ResourceManager).
+     * 
+     * @param resourceManager The resource manager from AtlasLoader.loadSources()
+     */
+    public void setResourceManagerForInitialLoad(ResourceManager resourceManager) {
+        synchronized (this) {
+            // Store the ResourceManager for potential synchronous loading
+            lastResourceManager = resourceManager;
+            log("ResourceManager stored for initial load scenario");
+        }
+    }
+
+    /**
+     * Synchronously load CTM properties for initial load scenario.
+     * 
+     * Called from SpriteAtlasTextureMixin when extension is null during initial atlas upload. This
+     * bypasses the async reload listener and loads properties synchronously.
+     * 
+     * The lastResourceManager is stored when startReload() is called. If reload listener never
+     * fired yet (IDLE state), we use that ResourceManager here.
+     * 
+     * WARNING: This is a blocking call that may take 100-500ms. Should only be used during initial
+     * load when we have no choice.
+     * 
+     * @return true if synchronous loading succeeded, false if no ResourceManager available
+     */
+    public boolean loadPropertiesSynchronously() {
+        synchronized (this) {
+            if (state != State.IDLE) {
+                log("WARNING: loadPropertiesSynchronously() called but state is " + state);
+                return false;
+            }
+
+            if (lastResourceManager == null) {
+                log("WARNING: No ResourceManager available for synchronous property loading");
+                return false;
+            }
+
+            log("Loading properties synchronously for initial load scenario...");
+            setState(State.LOADING_PROPERTIES);
+            extension = new BakedModelManagerReloadExtension(lastResourceManager, Runnable::run);
+        }
+
+        // Set thread-local context
+        extension.setContext();
+        log("Extension created synchronously, context set");
+
+        // Synchronously wait for properties to load by calling join()
+        try {
+            // This will block until async loading completes
+            // Typical duration: 100-500ms depending on number of resource packs
+            extension.beforeBake(java.util.Collections.emptyMap(), null);
+            log("Properties loaded synchronously, calling apply()");
+            extension.apply();
+
+            synchronized (this) {
+                setState(State.PROPERTIES_LOADED);
+                propertiesReady.complete(null);
+                log("Synchronous property loading COMPLETE");
+            }
+            return true;
+
+        } catch (Exception ex) {
+            log("ERROR: Synchronous property loading failed: " + ex.getMessage());
+            synchronized (this) {
+                propertiesReady.completeExceptionally(ex);
+            }
+            return false;
+        }
     }
 
     // ===== GETTERS (for monitoring/debugging) =====
