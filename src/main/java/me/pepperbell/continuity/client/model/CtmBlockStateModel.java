@@ -7,6 +7,8 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import me.pepperbell.continuity.client.config.ContinuityConfig;
 import net.fabricmc.fabric.api.renderer.v1.Renderer;
@@ -25,6 +27,7 @@ import net.minecraft.world.BlockRenderView;
 
 @SuppressWarnings("deprecation")
 public class CtmBlockStateModel extends WrappedBlockStateModel {
+	private static final Logger LOGGER = LoggerFactory.getLogger("Continuity");
 	private static final Predicate<Direction> NO_CULL = direction -> false;
 
 	private final BlockState defaultState;
@@ -39,13 +42,26 @@ public class CtmBlockStateModel extends WrappedBlockStateModel {
 			BlockState state, Random random, Predicate<@Nullable Direction> cullTest) {
 		BlockState renderState = Objects.requireNonNullElse(state, defaultState);
 
+		// DEBUG: Log EVERY emitQuads call for glass blocks
+		if (renderState.getBlock().getTranslationKey().contains("glass")) {
+			LOGGER.info("[CTM] CtmBlockStateModel.emitQuads() CALLED for: " + renderState
+					+ " at pos: " + pos);
+		}
+
 		if (!shouldApplyCtm()) {
+			if (renderState.getBlock().getTranslationKey().contains("glass")) {
+				LOGGER.warn("[CTM] CTM config disabled! Config value: "
+						+ ContinuityConfig.INSTANCE.connectedTextures.get());
+			}
 			emitWrapped(emitter, blockView, pos, renderState, random, cullTest);
 			return;
 		}
 
 		ModelObjectsContainer container = ModelObjectsContainer.get();
 		if (!container.featureStates.getConnectedTexturesState().isEnabled()) {
+			if (renderState.getBlock().getTranslationKey().contains("glass")) {
+				LOGGER.warn("[CTM] CTM feature state disabled!");
+			}
 			emitWrapped(emitter, blockView, pos, renderState, random, cullTest);
 			return;
 		}
@@ -60,10 +76,9 @@ public class CtmBlockStateModel extends WrappedBlockStateModel {
 
 		Function<Sprite, QuadProcessors.Slice> sliceFunc = QuadProcessors.getCache(renderState);
 
-		// Skip CTM processing if no cache entry for this block state
-		if (sliceFunc == null) {
-			emitWrapped(emitter, blockView, pos, renderState, random, cullTest);
-			return;
+		if (renderState.getBlock().getTranslationKey().contains("glass")) {
+			LOGGER.info("[CTM] Processing: sliceFunc=" + (sliceFunc != null ? "present" : "NULL")
+					+ ", mesh quad count: " + mesh.size());
 		}
 
 		var transform = container.ctmQuadTransform;
@@ -71,7 +86,15 @@ public class CtmBlockStateModel extends WrappedBlockStateModel {
 				sliceFunc);
 
 		try {
-			mesh.forEachMutable(mutableQuad -> processQuad(mutableQuad, emitter, transform));
+			final int[] processedCount = {0};
+			mesh.forEachMutable(mutableQuad -> {
+				processQuad(mutableQuad, emitter, transform);
+				processedCount[0]++;
+			});
+
+			if (renderState.getBlock().getTranslationKey().contains("glass")) {
+				LOGGER.info("[CTM] Processed " + processedCount[0] + " quads for glass at " + pos);
+			}
 		} finally {
 			transform.reset();
 			mesh.clear();
@@ -93,6 +116,12 @@ public class CtmBlockStateModel extends WrappedBlockStateModel {
 
 	private void processQuad(MutableQuadView quad, QuadEmitter outputEmitter,
 			CtmBakedModel.CtmQuadTransform transform) {
+		// DEBUG: Log sprite info before transform
+		Sprite sprite =
+				me.pepperbell.continuity.client.util.RenderUtil.getSpriteFinder().find(quad);
+		LOGGER.info("[CTM] Processing quad with sprite: "
+				+ (sprite != null ? sprite.getContents().getId() : "null"));
+
 		boolean keep = transform.transform(quad);
 
 		if (keep) {

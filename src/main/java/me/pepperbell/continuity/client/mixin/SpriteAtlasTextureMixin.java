@@ -35,8 +35,13 @@ abstract class SpriteAtlasTextureMixin {
                 + "SpriteAtlasTextureMixin: Atlas upload completed for: {}", id);
 
         // Only process blocks atlas - emissive textures are only in the blocks atlas
-        // In 1.21.10, atlas IDs are like "minecraft:blocks"
-        if (!id.equals(Identifier.of("minecraft", "blocks"))) {
+        // In 1.21.10, atlas IDs are "minecraft:textures/atlas/blocks.png"
+        // Check both the full path and the simple identifier for compatibility
+        String idPath = id.getPath();
+        boolean isBlocksAtlas = id.toString().equals("minecraft:textures/atlas/blocks.png")
+                || idPath.endsWith("blocks.png") || idPath.endsWith("atlas/blocks.png");
+
+        if (!isBlocksAtlas) {
             ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
                     + "SpriteAtlasTextureMixin: Skipping non-blocks atlas: {}", id);
             return;
