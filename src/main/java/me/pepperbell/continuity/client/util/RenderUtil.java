@@ -14,8 +14,6 @@ import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.color.block.BlockColors;
-import net.minecraft.client.render.model.BakedModelManager;
-import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.ResourceType;
 import net.minecraft.util.Identifier;
@@ -24,11 +22,11 @@ import net.minecraft.world.BlockRenderView;
 
 public final class RenderUtil {
 	private static final BlockColors BLOCK_COLORS = MinecraftClient.getInstance().getBlockColors();
-	private static final BakedModelManager MODEL_MANAGER = MinecraftClient.getInstance().getBakedModelManager();
 
 	private static SpriteFinder blockAtlasSpriteFinder;
 
-	public static int getTintColor(@Nullable BlockState state, BlockRenderView blockView, BlockPos pos, int tintIndex) {
+	public static int getTintColor(@Nullable BlockState state, BlockRenderView blockView,
+			BlockPos pos, int tintIndex) {
 		if (state == null || tintIndex == -1) {
 			return -1;
 		}
@@ -53,16 +51,19 @@ public final class RenderUtil {
 
 	public static class ReloadListener implements SimpleSynchronousResourceReloadListener {
 		public static final Identifier ID = ContinuityClient.asId("render_util");
-		public static final List<Identifier> DEPENDENCIES = List.of(ResourceReloadListenerKeys.MODELS);
+		public static final List<Identifier> DEPENDENCIES =
+				List.of(ResourceReloadListenerKeys.MODELS);
 		private static final ReloadListener INSTANCE = new ReloadListener();
 
 		public static void init() {
-			ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(INSTANCE);
+			ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES)
+					.registerReloadListener(INSTANCE);
 		}
 
 		@Override
 		public void reload(ResourceManager manager) {
-			blockAtlasSpriteFinder = MODEL_MANAGER.getAtlas(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE).spriteFinder();
+			blockAtlasSpriteFinder = me.pepperbell.continuity.client.mixin.SpriteAtlasTextureMixin
+					.continuity$getBlockAtlas().spriteFinder();
 		}
 
 		@Override

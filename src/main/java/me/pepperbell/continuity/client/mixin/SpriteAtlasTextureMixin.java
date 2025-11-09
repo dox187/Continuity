@@ -2,6 +2,7 @@ package me.pepperbell.continuity.client.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -29,6 +30,17 @@ public abstract class SpriteAtlasTextureMixin {
     @Shadow
     private Identifier id;
 
+    @Unique
+    private static volatile SpriteAtlasTexture continuity$blockAtlas;
+
+    /**
+     * Gets the block atlas texture for sprite finder creation. Used by RenderUtil to access the
+     * block atlas.
+     */
+    public static SpriteAtlasTexture continuity$getBlockAtlas() {
+        return continuity$blockAtlas;
+    }
+
     /**
      * Inject at HEAD of upload() to process sprites before GPU upload.
      * 
@@ -41,6 +53,11 @@ public abstract class SpriteAtlasTextureMixin {
     @Inject(method = "upload(Lnet/minecraft/client/texture/SpriteLoader$StitchResult;)V",
             at = @At("HEAD"))
     private void continuity$onUpload(SpriteLoader.StitchResult stitchResult, CallbackInfo ci) {
+        // Store reference to block atlas for RenderUtil
+        if (id.equals(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)) {
+            continuity$blockAtlas = (SpriteAtlasTexture) (Object) this;
+        }
+
         // Check if we have emissive textures for this atlas
         SpriteLoaderStitchContext context = SpriteLoaderStitchContext.THREAD_LOCAL.get();
         boolean hasEmissives = (context != null);
