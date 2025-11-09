@@ -52,11 +52,12 @@ public class CtmResourceReloadListener implements SynchronousResourceReloader {
         // Register the reloader
         resourceLoader.registerReloader(ID, INSTANCE);
 
-        // Set ordering: Run AFTER models are loaded (so models are available when CTM processes)
-        resourceLoader.addReloaderOrdering(ResourceReloaderKeys.Client.MODELS, ID);
+        // PHASE 7: Set ordering to run BEFORE textures are loaded
+        // This ensures CTM properties are loaded before sprite atlas upload
+        resourceLoader.addReloaderOrdering(ID, ResourceReloaderKeys.Client.TEXTURES);
 
-        ContinuityClient.LOGGER
-                .info("[Continuity] CtmResourceReloadListener registered with ResourceLoader");
+        ContinuityClient.LOGGER.info(
+                "[Continuity] CtmResourceReloadListener registered - will load before textures");
     }
 
     @Override

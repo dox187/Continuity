@@ -25,26 +25,28 @@ public class CtmInitializationCoordinator {
     private static final CtmInitializationCoordinator INSTANCE = new CtmInitializationCoordinator();
 
     /**
-     * State machine for CTM initialization lifecycle.
+     * Initialization state machine.
      * 
-     * IDLE → Load starts (either eager or from reload event) LOADING_PROPERTIES → Async loading in
-     * progress (reload path) PROPERTIES_LOADED → Extension ready for use ATLAS_PROCESSING →
-     * upload() method executing COMPLETE → Initialization finished
-     * 
-     * Initial load path: IDLE → PROPERTIES_LOADED → ATLAS_PROCESSING → COMPLETE Reload path: IDLE →
-     * LOADING_PROPERTIES → PROPERTIES_LOADED → ATLAS_PROCESSING → COMPLETE → IDLE
+     * IDLE: No initialization started. Extension null, no properties loaded. LOADING_PROPERTIES:
+     * reload() in progress. Extension created, properties loading async. PROPERTIES_LOADED: Async
+     * property loading complete. Extension ready for use. ATLAS_PROCESSING: SpriteAtlasTextureMixin
+     * processing. Quad processors being registered. COMPLETE: All initialization done. CTM ready
+     * for rendering.
      */
     public enum State {
         IDLE, LOADING_PROPERTIES, PROPERTIES_LOADED, ATLAS_PROCESSING, COMPLETE
     }
 
-    private volatile State state = State.IDLE;
+    private State state = State.IDLE;
     private BakedModelManagerReloadExtension extension;
 
     /**
      * Signal that properties loading is complete. Allows atlas upload mixin to proceed.
      */
-    private CompletableFuture<Void> propertiesReadyFuture = new CompletableFuture<>();
+    private CompletableFuture<Void> propertiesReady = new CompletableFuture<>();
+
+    private static final long TIMEOUT_SECONDS = 5L;
+    private static final String THREAD_NAME = "[Continuity/Coordinator]";
 
     private CtmInitializationCoordinator() {
         // Singleton
@@ -63,8 +65,10 @@ public class CtmInitializationCoordinator {
      * @param ext The extension with pre-loaded properties
      */
     public void setExtensionEarly(BakedModelManagerReloadExtension ext) {
-        this.extension = ext;
-        LOGGER.debug("[Continuity] Extension set early for initial load");
+        synchronized (this) {
+            this.extension = ext;
+            log("Extension set early for initial load");
+        }
     }
 
     /**
@@ -78,14 +82,13 @@ public class CtmInitializationCoordinator {
     public void setStateEarly(State newState) {
         if (newState == State.PROPERTIES_LOADED) {
             synchronized (this) {
-                this.state = newState;
+                setState(newState);
+                // Signal that properties are ready for upload()
+                propertiesReady.complete(null);
+                log("State set to PROPERTIES_LOADED for early initialization");
             }
-            // Signal that properties are ready for upload()
-            this.propertiesReadyFuture.complete(null);
-            LOGGER.debug("[Continuity] State set to PROPERTIES_LOADED for early initialization");
         } else {
-            LOGGER.warn("[Continuity] setStateEarly() called with non-PROPERTIES_LOADED state: {}",
-                    newState);
+            log("WARNING: setStateEarly() called with non-PROPERTIES_LOADED state: " + newState);
         }
     }
 
@@ -97,12 +100,9 @@ public class CtmInitializationCoordinator {
     public void startReload(ResourceManager manager) {
         synchronized (this) {
             // Reset future for new reload cycle
-            if (this.propertiesReadyFuture.isDone()) {
-                this.propertiesReadyFuture = new CompletableFuture<>();
-            }
-            this.state = State.LOADING_PROPERTIES;
-            LOGGER.info(
-                    "[Continuity] Starting CTM properties reload from resource reload listener");
+            propertiesReady = new CompletableFuture<>();
+            setState(State.LOADING_PROPERTIES);
+            log("Starting CTM properties reload from resource reload listener");
         }
 
         // Create the orchestrator - this triggers async property loading
@@ -110,6 +110,7 @@ public class CtmInitializationCoordinator {
 
         // Set thread-local context for SpriteLoaderMixin
         extension.setContext();
+        log("Extension created, context set");
 
         // Get the async properties loading future
         // When this completes, properties are ready for quad processor creation
@@ -119,13 +120,14 @@ public class CtmInitializationCoordinator {
         // When properties loading completes, signal that we're ready
         ctmLoadingFuture.thenRun(() -> {
             synchronized (this) {
-                this.state = State.PROPERTIES_LOADED;
-                this.propertiesReadyFuture.complete(null); // ← SIGNAL: Atlas upload can proceed
+                setState(State.PROPERTIES_LOADED);
+                propertiesReady.complete(null); // ← SIGNAL: Atlas upload can proceed
+                log("Properties loading complete, atlas upload can proceed");
             }
         }).exceptionally(ex -> {
             // Handle property loading errors
-            LOGGER.warn("[Continuity] Property loading failed", ex);
-            this.propertiesReadyFuture.completeExceptionally(ex);
+            log("WARNING: Property loading failed: " + ex.getMessage());
+            propertiesReady.completeExceptionally(ex);
             return null;
         });
     }
@@ -143,37 +145,59 @@ public class CtmInitializationCoordinator {
         synchronized (this) {
             // IDLE state: not initialized yet
             if (state == State.IDLE) {
+                // Coordinator not yet initialized - happens on initial game load before reload
+                // listener fires (unless eager load succeeded)
+                log("DEBUG: getExtensionWhenReady() called before reload started (initial load)");
                 return null;
             }
 
-            // LOADING_PROPERTIES: async loading in progress, block until ready
-            if (state == State.LOADING_PROPERTIES) {
-                try {
-                    // Wait up to 5 seconds for properties to finish loading
-                    propertiesReadyFuture.get(5, TimeUnit.SECONDS);
-                    LOGGER.debug("[Continuity] Properties loading completed");
-                } catch (java.util.concurrent.TimeoutException e) {
-                    LOGGER.warn("[Continuity] CTM properties loading timed out after 5 seconds");
-                    return null;
-                } catch (InterruptedException e) {
-                    LOGGER.warn("[Continuity] Interrupted waiting for CTM properties");
-                    Thread.currentThread().interrupt();
-                    return null;
-                } catch (Exception e) {
-                    LOGGER.error("[Continuity] Error waiting for CTM properties", e);
-                    return null;
-                }
-            }
-
-            // PROPERTIES_LOADED or later: extension is ready immediately
-            if (extension != null) {
-                LOGGER.debug("[Continuity] Returning extension, current state: {}", state);
+            // Already processing or complete, return immediately
+            if (state.ordinal() >= State.ATLAS_PROCESSING.ordinal()) {
+                setState(State.ATLAS_PROCESSING);
+                log("DEBUG: Returning extension, current state: " + state);
                 return extension;
             }
 
-            // Should not reach here
-            LOGGER.warn("[Continuity] Extension is null despite state being {}", state);
-            return null;
+            // PROPERTIES_LOADED: extension is ready immediately
+            if (state == State.PROPERTIES_LOADED && extension != null) {
+                setState(State.ATLAS_PROCESSING);
+                log("DEBUG: Returning extension, current state: " + state);
+                return extension;
+            }
+        }
+
+        // LOADING_PROPERTIES: async loading in progress, block until ready
+        // This is the critical synchronization point
+        try {
+            log("Waiting for properties loading (timeout: " + TIMEOUT_SECONDS + "s)...");
+
+            // Block until either:
+            // - propertiesReady completes normally (properties loaded)
+            // - propertiesReady fails (exception occurred)
+            // - TIMEOUT_SECONDS passes (deadlock/timeout error)
+            propertiesReady.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+            log("Properties ready, proceeding with quad processor registration");
+
+        } catch (java.util.concurrent.TimeoutException ex) {
+            log("ERROR: Timeout waiting for properties! CTM will not work.");
+            throw new RuntimeException(
+                    "CTM properties loading timeout after " + TIMEOUT_SECONDS + "s", ex);
+
+        } catch (java.util.concurrent.ExecutionException ex) {
+            log("ERROR: Property loading failed with exception: " + ex.getCause());
+            throw new RuntimeException("CTM property loading failed: " + ex.getCause().getMessage(),
+                    ex.getCause());
+
+        } catch (InterruptedException ex) {
+            log("ERROR: Thread interrupted while waiting for properties");
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Thread interrupted during CTM initialization", ex);
+        }
+
+        synchronized (this) {
+            setState(State.ATLAS_PROCESSING);
+            return extension;
         }
     }
 
@@ -182,37 +206,45 @@ public class CtmInitializationCoordinator {
      */
     public void markComplete() {
         synchronized (this) {
-            this.state = State.COMPLETE;
-            LOGGER.debug("[Continuity] CTM initialization COMPLETE");
+            setState(State.COMPLETE);
+            log("CTM initialization COMPLETE");
         }
     }
 
     /**
-     * Reset coordinator state between reload cycles.
-     * 
-     * Called after a reload completes to return to initial state. Allows subsequent reloads to
-     * start fresh.
+     * Resets coordinator state for resource reload. Called at the start of each new reload cycle.
      */
     public void reset() {
         synchronized (this) {
-            this.state = State.IDLE;
-            this.extension = null;
-            // Complete any pending futures
-            if (!propertiesReadyFuture.isDone()) {
-                propertiesReadyFuture.complete(null);
+            setState(State.IDLE);
+            extension = null;
+            // Create new CompletableFuture for next reload
+            // Complete any pending futures to prevent deadlocks
+            if (!propertiesReady.isDone()) {
+                propertiesReady.complete(null);
             }
-            this.propertiesReadyFuture = new CompletableFuture<>();
-            LOGGER.debug("[Continuity] Coordinator reset to IDLE state");
+            propertiesReady = new CompletableFuture<>();
+            log("Coordinator reset to IDLE state");
         }
     }
 
-    /**
-     * Get current state for debugging/testing.
-     */
-    public State getState() {
-        synchronized (this) {
-            return state;
+    // ===== STATE MANAGEMENT =====
+
+    private synchronized void setState(State newState) {
+        if (state != newState) {
+            log("State transition: " + state + " → " + newState);
+            state = newState;
         }
+    }
+
+    private void log(String message) {
+        LOGGER.info(THREAD_NAME + " " + message);
+    }
+
+    // ===== GETTERS (for monitoring/debugging) =====
+
+    public synchronized State getCurrentState() {
+        return state;
     }
 
     public synchronized BakedModelManagerReloadExtension getExtension() {
