@@ -147,7 +147,66 @@ The old mixin injection point at `SpriteAtlasManager.reload()` doesn't exist. In
 2. Use `SpriteLoader.StitchResult` to access sprite data
 3. Look for `AtlasManager.Stitch.getPreparations()` call for atlas prep data
 
-**Files Affected:**
+---
+
+## DETAILED API COMPARISON: Old vs New
+
+### AtlasPreparation API (1.21.6 vs 1.21.10 Replacement)
+
+**Old API (1.21.6) - SpriteAtlasManager.AtlasPreparation:**
+```java
+CLASS class_7774 AtlasPreparation
+    FIELD atlasTexture: SpriteAtlasTexture
+    FIELD stitchResult: SpriteLoader.StitchResult
+    METHOD getMissingSprite() -> Sprite
+    METHOD getSprite(Identifier id) -> Sprite
+    METHOD whenComplete() -> CompletableFuture
+    METHOD upload() -> void
+```
+
+**New API (1.21.10) - AtlasManager.Stitch:**
+```java
+CLASS class_11700 Stitch
+    FIELD entries: List<Entry>
+    FIELD preparations: Map<?, ?>                    // ← Same as old parameter!
+    FIELD readyForUpload: CompletableFuture
+    METHOD createSpriteMap() -> Map
+    METHOD getPreparations(atlasId) -> CompletableFuture
+```
+
+**Key Insight:** The `preparations` field in `AtlasManager.Stitch` is structurally similar to the old `Map<Identifier, AtlasPreparation>` parameter!
+
+### Injection Point Changes
+
+**Old (1.21.6):**
+```java
+@Inject(method = "bake(...Map<Identifier, SpriteAtlasManager.AtlasPreparation> atlases...)")
+void beforeBake(Map<Identifier, SpriteAtlasManager.AtlasPreparation> preparations) {
+    // Had direct access to all atlases here
+}
+```
+
+**New (1.21.10):**
+- Old method signature completely changed
+- `bake()` parameter 1 is now `SpriteLoader.StitchResult` 
+- `bake()` parameter 2 is now `UnbakedModel` (was `ModelBaker`)
+- Need to find new access point to `AtlasManager.Stitch.preparations`
+
+### Possible Solutions
+
+**Option 1: Find where AtlasManager.Stitch is created**
+- Search for "new AtlasManager.Stitch()" in reload flow
+- Inject there to access and modify preparations
+
+**Option 2: Hook into AtlasManager directly**
+- Find `AtlasManager.method_73038(getPreparations)` call
+- Intercept the result to modify sprite assignments
+
+**Option 3: Find new reload flow**
+- `BakedModelManager.reload()` → Find where atlases are built
+- Inject at atlas building stage (earlier than bake)
+
+---
 - `BakedModelManagerMixin.java` - INJECTION POINT CHANGED
 - `BakedModelManagerBakeContext.java` - NEW API: work with `SpriteLoader.StitchResult`
 - `BakedModelManagerReloadExtension.java` - NEW API: use `AtlasManager` instead
@@ -257,31 +316,35 @@ These files implement high-level texture processing:
 
 ---
 
-## Research Commands for Next Phase
+## Remaining Research Tasks (MUST DO BEFORE IMPLEMENTATION)
 
-### Command 1: Deep-dive into AtlasManager.Stitch structure
-```bash
-cd '.lib_src/yarn-1.21.10'
-cat 'mappings/net/minecraft/client/texture/AtlasManager.mapping' | grep -A 20 'class_11700 Stitch'
-```
+### Critical Questions to Answer:
 
-### Command 2: Find where AtlasManager is used in BakedModelManager flow
-```bash
-cd '.lib_src/fabric-1.21.10'
-grep -r "AtlasManager" src/ --include="*.java" | head -20
-```
+1. **WHERE IS AtlasManager.Stitch CREATED?**
+   - Find the call site that creates `new AtlasManager.Stitch(...)`
+   - Determine if it's in BakedModelManager or elsewhere
+   - Figure out how to inject before/after creation
 
-### Command 3: Check BakedModelManager reload flow
-```bash
-cat '.lib_src/yarn-1.21.10/mappings/net/minecraft/client/render/model/BakedModelManager.mapping' | grep -A 10 'method_45881 reloadModels'
-```
+2. **WHAT CONTAINS THE SPRITE DATA IN bake()?**
+   - `bake()` now receives `SpriteLoader.StitchResult` as first param
+   - Does this contain reference to `AtlasManager`?
+   - Does it contain the sprites themselves?
 
-### Command 4: Verify SpriteOpener interface
-```bash
-find '.lib_src/yarn-1.21.10' -name 'SpriteOpener.mapping' -exec cat {} \;
-```
+3. **HOW TO ACCESS SPRITE MODIFICATIONS?**
+   - Old: Modify `Map<Identifier, AtlasPreparation>` directly
+   - New: How do we modify sprites if they're in `AtlasManager.Stitch.preparations`?
 
-**UPDATED:** Previous research commands replaced with AtlasManager-specific queries based on new findings.
+4. **WHEN ARE SPRITES POPULATED?**
+   - In old flow: Clear timing with `AtlasPreparation.upload()`
+   - In new flow: Where/when are sprites added to preparations map?
+
+### Research Priority
+1. Find `AtlasManager.Stitch` creation point
+2. Trace `SpriteLoader.StitchResult` → `AtlasManager` linkage
+3. Map old injection points to new API
+4. Identify sprite modification opportunities
+
+**Status:** These questions must be answered by examining Fabric 1.21.10 source code in detail.
 
 ---
 
