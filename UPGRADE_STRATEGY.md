@@ -25,28 +25,90 @@
 
 ## 🔍 Analysis Framework
 
-Each file will be analyzed using this checklist:
+Each file analyzed using this checklist:
 
 ```
 FILE: [path/to/File.java]
-├─ IMPORTS
-│  ├─ Minecraft classes (versions differ)
-│  ├─ Fabric API (might change)
-│  └─ Other dependencies
-├─ API CALLS
-│  ├─ Methods that might not exist in 1.21.10
-│  ├─ Deprecated patterns
-│  └─ New alternatives available
-├─ MIXIN PATTERNS
-│  ├─ @Inject, @ModifyArg, @ModifyReturn descriptors
-│  ├─ Method signatures (obfuscated names)
-│  └─ Compatibility risks
-├─ CHANGES NEEDED
-│  ├─ What to replace
-│  ├─ Why
-│  └─ How
-└─ RISK LEVEL: [LOW/MEDIUM/HIGH]
+├─ IMPORTS (Minecraft API changes?)
+├─ API CALLS (Methods still exist?)
+├─ MIXIN PATTERNS (Descriptors valid?)
+├─ HIDDEN ISSUES (revealed by build?)
+├─ RISK LEVEL: [LOW/MEDIUM/HIGH]
+└─ ACTION: [KEEP/UPDATE/DELETE/CREATE]
 ```
+
+---
+
+## 🔴 NEW RISK CATEGORIES (Discovered in Phase 3)
+
+### Category 1: Removed Class APIs
+**Severity**: 🔴 CRITICAL  
+**Discovery**: Phase 3 Step 10 (dependency update)  
+**Example**: `SpriteAtlasManager` class removed in 1.21.10  
+**Impact**: 3+ files cascade failure  
+**Solution**: Architecture redesign, file deletion, new injection point  
+**Files**: BakedModelManagerBakeContext.java, BakedModelManagerReloadExtension.java  
+**Task**: See CRITICAL_FILES_GUIDE.md Tasks 1-2
+
+### Category 2: Hidden API Method Changes
+**Severity**: 🔴 CRITICAL  
+**Discovery**: Phase 3 Step 10 (build with new dependencies)  
+**Example**: `StitchResult.regions()` → `StitchResult.sprites()` rename  
+**Impact**: Compilation fails when dependencies updated  
+**Pattern**: Method exists in old version, renamed/removed in new version  
+**Solution**: Use @Shadow mixin interface pattern  
+**File**: SpriteLoaderMixin.java Line 119  
+**Task**: See CRITICAL_FILES_GUIDE.md Task 3
+
+### Category 3: Removed Method APIs
+**Severity**: 🔴 CRITICAL  
+**Discovery**: Phase 3 Step 10 (build fails)  
+**Example**: `BakedModelManager.getAtlas(Identifier)` method removed  
+**Impact**: No replacement API provided  
+**Pattern**: Method is necessary, but no longer accessible  
+**Solution**: Create new mixin to capture reference at alternate point  
+**File**: RenderUtil.java Line 65  
+**Task**: See CRITICAL_FILES_GUIDE.md Tasks 5-6
+
+### Category 4: Mixin Rule Violations
+**Severity**: 🔴 CRITICAL (Runtime Error)  
+**Discovery**: Phase 4 (Runtime Testing) - InvalidMixinException  
+**Example**: Public static method in mixin (`continuity$getBlockAtlas()`)  
+**Impact**: Minecraft crashes during mod load (runtime, not compile)  
+**Rule**: Static methods in mixins MUST be private  
+**Solution**: Use external utility class (AtlasStorage pattern)  
+**Prevention**: Never expose static methods directly from mixins  
+**Reference**: See MIXIN_RULES_AND_GOTCHAS.md
+
+### Category 5: Record Component Changes
+**Severity**: 🟡 MEDIUM  
+**Discovery**: Phase 3 during API research  
+**Example**: Record component `regions` renamed to `sprites`  
+**Pattern**: Record structure changes between versions  
+**Solution**: Use @Shadow to access private fields safely  
+**Prevention**: Check Yarn mappings for record definitions
+
+### Category 6: Descriptor Signature Changes
+**Severity**: 🟡 MEDIUM  
+**Discovery**: Fabric Loom handles automatically  
+**Pattern**: Obfuscated class names change between versions  
+**Solution**: Fabric Loom remaps automatically  
+**Prevention**: Use human-readable names in mixins
+
+---
+
+## 📊 Risk Priority Matrix (UPDATED)
+
+| Risk Category | Severity | When Found | Example File | Phase |
+|---------------|----------|-----------|--------------|-------|
+| Removed Class API | 🔴 CRITICAL | Build/Dependencies | BakedModelManagerBakeContext.java | Phase 3 |
+| Hidden Method Rename | 🔴 CRITICAL | Build/Dependencies | SpriteLoaderMixin.java | Phase 3 |
+| Removed Method API | 🔴 CRITICAL | Build/Dependencies | RenderUtil.java | Phase 3 |
+| Mixin Rule Violation | 🔴 CRITICAL | Runtime/Testing | SpriteAtlasTextureMixin.java | Phase 4 |
+| Record Changes | 🟡 MEDIUM | Analysis/Build | StitchResult API | Phase 3 |
+| Descriptor Changes | 🟡 MEDIUM | Build (auto-fixed) | Any mixin | Phase 3 |
+| Removed Nested Class | 🔴 CRITICAL | Build | AtlasPreparation | Phase 3 |
+| Cascade Dependencies | 🔴 CRITICAL | Deletion | 3-file chain | Phase 3 |
 
 ---
 

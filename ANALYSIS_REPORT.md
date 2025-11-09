@@ -26,53 +26,166 @@
 
 ### Issue #1: `SpriteAtlasManager` Removal
 **Severity**: 🔴 CRITICAL  
+**Discovery Point**: Hidden until dependencies updated to 1.21.10  
 **Files Affected**:
-- `BakedModelManagerBakeContext.java` - API interface
-- `BakedModelManagerReloadExtension.java` - Implementation
-- `BakedModelManagerMixin.java` - Mixin
+- `BakedModelManagerBakeContext.java` - API interface (MUST DELETE)
+- `BakedModelManagerReloadExtension.java` - Implementation (MUST DELETE)
+- `BakedModelManagerMixin.java` - Mixin (MUST SIMPLIFY)
 
 **Current Code**:
 ```java
-import net.minecraft.client.render.model.SpriteAtlasManager;
+import net.minecraft.client.render.model.SpriteAtlasManager;  // ❌ REMOVED
 public void beforeBake(Map<Identifier, SpriteAtlasManager.AtlasPreparation> preparations)
 ```
 
-**Problem**: `SpriteAtlasManager` doesn't exist in Minecraft 1.21.10
+**Problem**: 
+- `SpriteAtlasManager` class **no longer exists** in Minecraft 1.21.10
+- `AtlasPreparation` nested class **no longer exists**
+- Entire class hierarchy removed due to API redesign
 
-**Solution**: Requires research into new Fabric API or Minecraft 1.21.10 atlas handling
+**Impact**: 
+- ❌ Compilation fails when dependencies updated
+- ❌ Three files cannot be used with 1.21.10
 
-**Status**: 🔍 Research needed
+**Solution Strategy**:
+- ✅ Delete both context files (interface + implementation)
+- ✅ Simplify BakedModelManagerMixin to placeholder
+- ✅ Replace functionality with new `SpriteAtlasTexture.upload()` injection point
+
+**Related Tasks**:
+- [ ] Delete `BakedModelManagerBakeContext.java`
+- [ ] Delete `BakedModelManagerReloadExtension.java`
+- [ ] Simplify `BakedModelManagerMixin.java` to minimal implementation
+
+**Status**: ⏳ **Awaiting Phase 3 Implementation**
 
 ---
 
-### Issue #2: `SpriteLoader.StitchResult` API Change
+### Issue #2: `SpriteLoader.StitchResult` API Change - Hidden Method Rename
 **Severity**: 🔴 CRITICAL  
+**Discovery Point**: Hidden until dependencies updated to 1.21.10  
 **Files Affected**:
-- `SpriteLoaderMixin.java` - Mixin implementation
-- `SpriteLoaderLoadContext.java` - Context interface
+- `SpriteLoaderMixin.java` Line 119 - Mixin implementation
 
 **Current Code**:
 ```java
-Map<Identifier, Sprite> sprites = cir.getReturnValue().regions();
+Map<Identifier, Sprite> sprites = cir.getReturnValue().regions();  // ❌ METHOD NOT FOUND
 ```
 
-**Problem**: `.regions()` method might not exist or signature changed
+**Problem**: 
+- `StitchResult.regions()` method **does not exist** in Minecraft 1.21.10
+- Record component renamed: `regions` → `sprites`
+- Method name changed accordingly
 
-**Solution**: Requires Yarn mapping verification and method descriptor update
+**Impact**: 
+- ❌ Compilation fails: "cannot find symbol: method regions()"
+- ❌ Emissive sprite attachment cannot work
 
-**Status**: 🔍 Research needed
+**Solution Strategy**:
+- [ ] Create `StitchResultExtension` mixin interface
+- [ ] Create `StitchResultMixin` with `@Shadow private Map sprites`
+- [ ] Update line 119 to use interface pattern: `((StitchResultExtension) (Object) cir.getReturnValue()).continuity$getSprites()`
+- [ ] Register mixin in `continuity.mixins.json`
+
+**Verification Checklist**:
+- [ ] Verify correct method name in Yarn 1.21.10 mappings (likely `sprites()`)
+- [ ] Confirm record structure change
+- [ ] Test that emissive sprites attach correctly
+
+**Status**: ⏳ **Awaiting Phase 3 Implementation**
 
 ---
 
-### Issue #3: Mixin Method Descriptors
+### Issue #3: `BakedModelManager.getAtlas()` Removal - Critical for Sprite Finder
 **Severity**: 🔴 CRITICAL  
-**Files Affected**: All files in `client/mixin/` directory
+**Discovery Point**: Hidden until dependencies updated to 1.21.10  
+**Files Affected**:
+- `RenderUtil.java` Line 65 - Utility initialization
 
-**Problem**: Minecraft 1.21.10 uses different obfuscated names, mixin descriptors must match
+**Current Code**:
+```java
+blockAtlasSpriteFinder = MODEL_MANAGER
+    .getAtlas(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)  // ❌ METHOD REMOVED
+    .spriteFinder();
+```
 
-**Solution**: Regenerate descriptor signatures with Yarn 1.21.10 mappings
+**Problem**: 
+- Method `BakedModelManager.getAtlas(Identifier)` **no longer exists** in 1.21.10
+- Part of removed `SpriteAtlasManager` API
+- No direct replacement provided by Minecraft
 
-**Status**: 🔍 Waiting for mapping update
+**Impact**: 
+- ❌ Compilation fails: "cannot find symbol: method getAtlas(Identifier)"
+- ❌ Sprite finder cannot be created
+- ❌ CTM quad processing cannot work without sprite lookup
+
+**Solution Strategy**:
+- [ ] Create new `SpriteAtlasTextureMixin` (mixin layer) to capture block atlas at upload
+- [ ] Create `AtlasStorage` utility class (util layer) to hold reference
+- [ ] Update line 65 to: `blockAtlasSpriteFinder = AtlasStorage.getBlockAtlas().spriteFinder()`
+
+**Implementation Dependency Chain**:
+```
+1. SpriteAtlasTextureMixin created
+   ├─ Injects into upload() method
+   ├─ Stores atlas in AtlasStorage
+   └─ Only if ID == BLOCK_ATLAS_TEXTURE
+    ↓
+2. AtlasStorage utility created
+   ├─ Static field: private static volatile SpriteAtlasTexture blockAtlas
+   ├─ Setter: setBlockAtlas(SpriteAtlasTexture)
+   └─ Getter: SpriteAtlasTexture getBlockAtlas()
+    ↓
+3. RenderUtil updated
+   └─ Uses AtlasStorage.getBlockAtlas() instead of MODEL_MANAGER.getAtlas()
+```
+
+**Critical Mixin Rule**:
+- ⚠️ **MUST**: Static methods in mixins are PRIVATE only
+- ❌ **FORBIDDEN**: Public static methods pollute target class namespace
+- ✅ **USE**: External utility class (AtlasStorage) to avoid this violation
+
+**Status**: ⏳ **Awaiting Phase 3 Implementation**
+
+---
+
+### Issue #4: Mixin Static Method Visibility Rule (Runtime Error)
+**Severity**: 🔴 CRITICAL (Runtime Blocker)  
+**Discovery Point**: Runtime error during Minecraft launch (Phase 4)  
+**Problem Context**: 
+When creating `SpriteAtlasTextureMixin` to fix Issue #3, mixin framework enforces static method visibility rules.
+
+**The Problem**:
+```java
+@Mixin(SpriteAtlasTexture.class)
+public abstract class SpriteAtlasTextureMixin {
+    public static SpriteAtlasTexture continuity$getBlockAtlas() {  // ❌ ERROR
+        return continuity$blockAtlas;
+    }
+}
+```
+
+**Error**:
+```
+InvalidMixinException: Mixin contains non-private static method continuity$getBlockAtlas()
+```
+
+**Why**:
+- Static methods in mixins become part of the **target class** (SpriteAtlasTexture)
+- Public static methods would expose internal mod methods in Minecraft's public API
+- This violates mixin contract: mixins should not pollute target class
+
+**Solution**:
+- ❌ **DO NOT** make static methods public in mixins
+- ✅ **USE** external utility class (AtlasStorage) instead
+- ✅ **PATTERN**: Keep mixin methods private, expose via external utility
+
+**Prevention**:
+- [ ] Never create public static methods in mixin classes
+- [ ] Use external utility classes for shared state
+- [ ] Document this rule in MIXIN_RULES_AND_GOTCHAS.md
+
+**Status**: ⏳ **Awaiting AtlasStorage pattern implementation**
 
 ---
 

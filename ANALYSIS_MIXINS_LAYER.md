@@ -15,29 +15,38 @@ The Client Mixins layer is **CRITICAL** because it contains bytecode injection p
 ## Files Analyzed
 
 ### 1. `SpriteLoaderMixin.java`
-**Risk Level**: ⚠️ MEDIUM (was HIGH, now MEDIUM with new strategy)  
-**Status**: ✅ FULLY ANALYZED  
+**Risk Level**: ⚠️ MEDIUM (upgraded with new strategy insights)  
+**Status**: ✅ FULLY ANALYZED - POTENTIAL ISSUES IDENTIFIED  
 
 **Current Code Analysis**:
 ```java
 @Mixin(SpriteLoader.class)
 abstract class SpriteLoaderMixin {
     @ModifyArg(method = "load(...)")  // 2 injections
-    @Inject(method = "stitch(...)")   // 1 injection
+    @Inject(method = "stitch(...)")   // 1 injection - LINE 119 CRITICAL
 }
 ```
 
-**Key APIs Used**:
-- ✅ `SpriteLoader.StitchResult.regions()` - CONFIRMED STABLE in 1.21.10
-- ✅ `SpriteLoader.load()` method - COMPATIBLE
-- ✅ `SpriteContents` - STABLE API
+**Critical Issue Identified** 🔴:
+- **Line 119 calls `.regions()` method on `StitchResult`**
+- ⚠️ **POTENTIAL PROBLEM**: Method name may have changed in 1.21.10
+- 📌 **Must verify**: Check Yarn 1.21.10 mappings for `SpriteLoader.StitchResult` 
+- The record component `regions` may be renamed to `sprites()` or similar
+- **Impact**: Emissive sprite attachment will FAIL if method name wrong
 
-**Status with New Strategy**: ✅ **WORKING** - No changes needed!
-- Uses `SpriteLoader.StitchResult` (stable API)
-- This is exactly what the new injection point approach needs
-- Can remain unchanged
+**Key APIs to Verify**:
+- ❓ `SpriteLoader.StitchResult.regions()` - **NEEDS VERIFICATION** (method name may have changed)
+- ✅ `SpriteLoader.load()` method - Stable signature expected
+- ✅ `SpriteContents` - Stable API expected
 
-**Expected Change**: ✅ NONE - Use exactly as-is in Phase 3
+**Possible Fixes** (if method renamed):
+1. **Option A**: Use reflection to access `sprites` field directly
+2. **Option B**: Create mixin interface with `@Shadow` to access field safely
+3. **Option C**: Find new method name in Yarn 1.21.10 mappings
+
+**Expected Change**: 
+- ⚠️ **LIKELY**: Method name update or interface pattern needed
+- **Risk**: Hidden until dependencies updated to 1.21.10 (discovered during build)
 
 ---
 
@@ -62,36 +71,104 @@ abstract class SpriteMixin implements SpriteExtension {
 ---
 
 ### 3. `BakedModelManagerMixin.java`
-**Risk Level**: 🔴 HIGH → 🟡 MEDIUM (will be OBSOLETED by new strategy)  
-**Status**: ✅ ANALYZED  
+**Risk Level**: 🔴 HIGH → ⚠️ MEDIUM (strategy change reduces scope)  
+**Status**: ✅ ANALYZED - MAJOR REFACTORING NEEDED  
 
-**Current Code Analysis**:
+**Current Code**:
 ```java
 @Mixin(BakedModelManager.class)
 abstract class BakedModelManagerMixin {
-    @Inject(method = "reload(...)") // HEAD injection
-    @Inject(method = "bake(...)")   // Targets SpriteAtlasManager.AtlasPreparation
-    @Inject(method = "upload(...)")
+    @Inject(method = "reload(...)")  // Line 26 - HEAD injection
+    @Inject(method = "bake(...)")    // Line 42 - Uses SpriteAtlasManager
+    @Inject(method = "upload(...)")  // Line 58 - Uses SpriteAtlasManager.AtlasPreparation
 }
 ```
 
-**Problem**: Line 26-27 uses **REMOVED API**:
+**Problem - Removed APIs** 🔴:
 ```java
-Map<Identifier, SpriteAtlasManager.AtlasPreparation> atlases
+// Lines 26-27 use REMOVED CLASSES
+import net.minecraft.client.render.model.SpriteAtlasManager;  // ❌ CLASS REMOVED
+// References to:
+Map<Identifier, SpriteAtlasManager.AtlasPreparation> preparations  // ❌ NESTED CLASS REMOVED
 ```
 
-**Status with New Strategy**: 🔴 OBSOLETE
-- This entire mixin becomes unnecessary with new approach
-- New strategy uses `SpriteAtlasTexture.upload()` directly
-- This file should be **REMOVED or HEAVILY SIMPLIFIED** in Phase 3
+**Impact Assessment**:
+- ✅ New strategy uses `SpriteAtlasTexture.upload()` instead
+- ⚠️ This mixin becomes **PARTIALLY OBSOLETE** with new approach
+- 🔴 Six injections depend on removed `SpriteAtlasManager` API
+- ⚠️ **BUT**: Some functions may still be needed (verify necessity)
 
-**Expected Change**: 
-- ❌ **DELETE or COMMENT OUT** for new strategy
-- OR completely refactor for `SpriteAtlasTexture.upload()` pattern
+**Required Actions**:
+1. **Action A**: Analyze which of 6 injections are still needed
+2. **Action B**: For unneeded injections → REMOVE them
+3. **Action C**: For needed injections → REFACTOR to use new injection point
+4. **Action D**: Simplify to minimal placeholder if nothing is needed
+
+**Risk**: Without action, compilation will fail when updated to 1.21.10 dependencies
 
 ---
 
-### 4. `AtlasLoaderMixin.java`
+### NEW MIXIN TO CREATE: `SpriteAtlasTextureMixin.java`
+**Risk Level**: 🟡 MEDIUM (new injection point - requires careful design)  
+**Status**: ⏳ MUST BE CREATED  
+
+**Objective**: 
+Capture `SpriteAtlasTexture` instance when block atlas is uploaded, for later access by `RenderUtil`.
+
+**Design Challenge**: Must store reference without violating Mixin rules!
+- ⚠️ **CRITICAL RULE**: Static methods in mixins MUST be private
+- ⚠️ Public static methods are forbidden (would pollute target class)
+- 📌 **Solution Pattern**: Use external utility class or accessor pattern
+
+**Target Method**:
+```java
+@Mixin(SpriteAtlasTexture.class)
+public abstract class SpriteAtlasTextureMixin {
+    // Inject at: upload(SpriteLoader.StitchResult stitch)
+    // Condition: When ID equals BLOCK_ATLAS_TEXTURE
+    // Action: Store reference for later access by RenderUtil
+}
+```
+
+**Implementation Options**:
+
+**Option 1: External Storage Class** ✅ RECOMMENDED
+```java
+// File: AtlasStorage.java
+public final class AtlasStorage {
+    private static volatile SpriteAtlasTexture blockAtlas;
+    
+    public static void setBlockAtlas(SpriteAtlasTexture atlas) {
+        blockAtlas = atlas;
+    }
+    
+    public static SpriteAtlasTexture getBlockAtlas() {
+        return blockAtlas;
+    }
+}
+
+// In mixin:
+@Inject(method = "upload(...)V", at = @At("HEAD"))
+private void continuity$onUpload(...) {
+    if (id.equals(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)) {
+        AtlasStorage.setBlockAtlas((SpriteAtlasTexture) (Object) this);
+    }
+}
+```
+
+**Option 2: Mixin Interface Extension**
+```java
+// Create interface with @Shadow field access
+// Similar to existing StitchResultExtension pattern
+// Less recommended: adds complexity for single use case
+```
+
+**Action Required**:
+- [ ] Create `AtlasStorage.java` utility class
+- [ ] Create `SpriteAtlasTextureMixin.java` with upload injection
+- [ ] Register in `continuity.mixins.json`
+- [ ] Update `RenderUtil.java` to use `AtlasStorage.getBlockAtlas()`
+- ⚠️ **CRITICAL**: Do NOT make static methods public in mixin!
 **Risk Level**: ⚠️ MEDIUM  
 **Status**: ✅ FULLY ANALYZED  
 

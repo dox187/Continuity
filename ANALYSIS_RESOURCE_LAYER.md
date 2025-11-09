@@ -16,7 +16,7 @@ The Resource Layer handles CTM properties loading, model wrapping, and context m
 
 ### 1. `BakedModelManagerBakeContext.java`
 **Risk Level**: 🔴 CRITICAL  
-**Status**: ✅ ANALYZED  
+**Status**: ⏳ MUST BE DELETED  
 
 **Current Code**:
 ```java
@@ -25,42 +25,84 @@ public interface BakedModelManagerBakeContext {
 }
 ```
 
-**Problem**: Line 11 - **REMOVED API**
+**Problem - Removed API** 🔴:
 ```
-net.minecraft.client.render.model.SpriteAtlasManager (CLASS REMOVED)
-SpriteAtlasManager.AtlasPreparation (NESTED CLASS REMOVED)
+Line 11: net.minecraft.client.render.model.SpriteAtlasManager (CLASS REMOVED in 1.21.10)
+Line 11: SpriteAtlasManager.AtlasPreparation (NESTED CLASS REMOVED)
 ```
 
-**Status with New Strategy**: 🔴 OBSOLETE
-- This entire interface becomes **UNNECESSARY**
-- New strategy doesn't need `beforeBake()` pattern
-- New approach uses `SpriteAtlasTexture.upload()` directly
+**Impact Assessment**:
+- 🔴 **CRITICAL**: Compilation will fail when updating to 1.21.10 dependencies
+- ⚠️ This class is only used by `BakedModelManagerReloadExtension.java`
+- ✅ New strategy makes this interface completely unnecessary
+- New approach uses `SpriteAtlasTexture.upload()` instead
 
-**Expected Change**: ❌ **DELETE THIS FILE**
+**Action Required**:
+- [ ] **DELETE this file** - It serves no purpose with new injection point strategy
+- [ ] Remove any imports of this class from other files
+- [ ] No replacement needed - functionality moved to `SpriteAtlasTextureMixin`
+
+**Impact Chain**:
+```
+BakedModelManagerBakeContext.java (DELETE)
+    ↓ makes unnecessary
+BakedModelManagerReloadExtension.java (DELETE)
+    ↓ makes unnecessary
+BakedModelManagerMixin.java (SIMPLIFY)
+```
 
 ---
 
 ### 2. `BakedModelManagerReloadExtension.java`
 **Risk Level**: 🔴 CRITICAL  
-**Status**: ✅ ANALYZED (not shown, but referenced)  
+**Status**: ⏳ MUST BE DELETED  
 
-**Dependency**: Implements `BakedModelManagerBakeContext`
+**Current Code Pattern**:
+```java
+public class BakedModelManagerReloadExtension implements BakedModelManagerBakeContext {
+    @Override
+    public void beforeBake(Map<Identifier, SpriteAtlasManager.AtlasPreparation> preparations) {
+        // Processes atlas preparations
+        for (var entry : preparations.entrySet()) {
+            var id = entry.getKey();
+            var preparation = entry.getValue();  // ❌ THIS CLASS REMOVED
+            var sprite = preparation.getSprite(...);  // ❌ METHOD REMOVED
+        }
+    }
+}
+```
 
-**Problem**: 
-- Uses `SpriteAtlasManager.AtlasPreparation` (REMOVED)
-- Entire class depends on removed API
+**Problem - Cascade Failure** 🔴:
+1. Depends on `BakedModelManagerBakeContext` (already broken)
+2. Uses `SpriteAtlasManager.AtlasPreparation` (removed class)
+3. Calls `.getSprite()` method (no longer exists)
 
-**Status with New Strategy**: 🔴 OBSOLETE
-- Becomes unnecessary with new injection point
-- **DELETE THIS FILE**
+**Impact Assessment**:
+- 🔴 **CRITICAL**: Will not compile with 1.21.10 dependencies
+- ⚠️ Only referenced by `BakedModelManagerMixin.java`
+- ✅ New strategy makes this entire class unnecessary
 
-**Expected Change**: ❌ **DELETE THIS FILE**
+**Action Required**:
+- [ ] **DELETE this file** - Replace all functionality with `SpriteAtlasTextureMixin`
+- [ ] Remove from any injection contexts
+- [ ] Update `BakedModelManagerMixin.java` to remove references
+
+**Dependency Chain**:
+```
+SpriteAtlasManager (REMOVED) - Cascade failure
+    ↓
+SpriteAtlasManager.AtlasPreparation (REMOVED)
+    ↓
+BakedModelManagerReloadExtension.java (DEPENDS) → MUST DELETE
+    ↓
+BakedModelManagerMixin.java (REFERENCES) → MUST SIMPLIFY
+```
 
 ---
 
 ### 3. `SpriteLoaderLoadContext.java`
-**Risk Level**: ⚠️ MEDIUM  
-**Status**: ✅ ANALYZED  
+**Risk Level**: ⚠️ MEDIUM → 🔴 HIGH (Hidden API issue)  
+**Status**: ⏳ REQUIRES CAREFUL VERIFICATION  
 
 **Current Code**:
 ```java
@@ -71,17 +113,29 @@ public interface SpriteLoaderLoadContext {
 }
 ```
 
+**Critical Issue Identified** 🔴:
+- ⚠️ **HIDDEN ISSUE**: This context accesses emissive control data
+- 📌 **Must verify**: Emissive sprite handling in 1.21.10
+- 🔍 **Potential problem**: The emissive sprite attachment might use different pattern
+- **Impact**: If mixin pattern for emissive textures changed, this needs updates
+
+**Verification Checklist**:
+- [ ] Confirm `EmissiveControl` class exists in 1.21.10
+- [ ] Verify method signatures haven't changed
+- [ ] Check if emissive attachment moved to different layer
+- [ ] Verify thread-local pattern still works
+
 **Analysis**:
-- ✅ Uses only stable Java APIs
-- ✅ No Minecraft-specific APIs removed
-- ✅ Interface pattern is flexible
-- ⚠️ Implementation class needs verification
+- ✅ Uses only stable Java APIs (ThreadLocal, CompletableFuture)
+- ✅ No direct Minecraft-specific removed APIs
+- ⚠️ Functionality depends on emissive system which may have changed
+- ⚠️ Implementation class `SpriteLoaderLoadContextImpl` needs verification
 
 **Status with New Strategy**: 
-- Still needed for emissive texture tracking
-- **KEEP BUT VERIFY IMPLEMENTATION**
+- ✅ Still needed for emissive texture tracking
+- ⚠️ BUT: May need updates to implementation class
 
-**Expected Change**: ⚠️ **POSSIBLY SIMPLIFY**, but core logic remains
+**Expected Change**: ⚠️ **LIKELY MINIMAL**, but verify implementation details
 
 ---
 
@@ -201,6 +255,50 @@ public class ModelWrappingHandler {
 - Need to check for API changes
 
 **Expected Change**: ⚠️ **Possibly needs updates**
+
+---
+
+### 12. `RenderUtil.java` (in util/ layer) - CRITICAL DEPENDENCY
+**Risk Level**: 🔴 CRITICAL  
+**Status**: ⏳ **REQUIRES FIXES**  
+**File Location**: `src/main/java/me/pepperbell/continuity/client/util/RenderUtil.java`
+
+**Critical Issue Identified** 🔴:
+```java
+// Line 65 - BROKEN IN 1.21.10
+blockAtlasSpriteFinder = MODEL_MANAGER
+    .getAtlas(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)  // ❌ METHOD REMOVED
+    .spriteFinder();
+```
+
+**Problem**:
+- Method `BakedModelManager.getAtlas(Identifier)` **REMOVED** in 1.21.10
+- Part of broader `SpriteAtlasManager` API removal  
+- **Impact**: Cannot create sprite finder, CTM rendering will fail
+- **Hidden until**: Dependencies updated to 1.21.10
+
+**Solution Pattern**:
+This is why `SpriteAtlasTextureMixin` must be created - to capture block atlas at upload time.
+
+**Implementation Chain**:
+```
+1. Create SpriteAtlasTextureMixin (mixin layer)
+   └─ Inject into upload() method
+   └─ Store atlas in AtlasStorage
+    ↓
+2. Create AtlasStorage utility (util layer)
+   └─ Static holder for block atlas reference
+    ↓
+3. Update RenderUtil line 65
+   └─ Use: AtlasStorage.getBlockAtlas().spriteFinder()
+   └─ Instead of: MODEL_MANAGER.getAtlas()
+```
+
+**Action Required**:
+- [ ] Create `AtlasStorage.java` first (dependency)
+- [ ] Create `SpriteAtlasTextureMixin.java` with upload injection
+- [ ] Update `RenderUtil.java` line 65 to use new storage
+- [ ] ⚠️ **CRITICAL**: Ensure mixin static methods are PRIVATE (mixin rule)
 
 ---
 

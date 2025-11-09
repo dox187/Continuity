@@ -1,346 +1,387 @@
-# Critical File Fix Guide - Minecraft 1.21.10 Migration
+# Critical Files - Phase 3 Implementation Tasks
 
-**Purpose**: Detailed migration guide for the 6 CRITICAL files  
-**Status**: Research Phase  
-**Updated**: November 9, 2025
-
-> **IMPORTANT NOTE**: This guide documents the analysis of the 6 critical files and their problems in the
-> OLD approach (using `BakedModelManager.bake()`). 
->
-> **See PHASE2B_IMPLEMENTATION_STRATEGY.md for the NEW approach** using `SpriteAtlasTexture.upload()` 
-> instead, which significantly simplifies implementation and reduces complexity by 37%.
+**Updated**: November 9, 2025  
+**Status**: ⏳ **PHASE 3 IN PROGRESS - ACTIONABLE TASKS**  
+**Strategy**: NEW approach (SpriteAtlasTexture.upload()) per PHASE2B_IMPLEMENTATION_STRATEGY.md
 
 ---
 
-## 📍 CRITICAL FILE #1: `BakedModelManagerBakeContext.java`
+## 📌 IMPORTANT UPDATE
 
-### Current Code
-```java
-import net.minecraft.client.render.model.SpriteAtlasManager;
+This guide has been updated to reflect Phase 3 learnings. The **OLD approach** (BakedModelManager.bake with removed SpriteAtlasManager) is being replaced by the **NEW strategy** using SpriteAtlasTexture.upload().
 
-public interface BakedModelManagerBakeContext {
-    ThreadLocal<BakedModelManagerBakeContext> THREAD_LOCAL = new ThreadLocal<>();
-    void beforeBake(Map<Identifier, SpriteAtlasManager.AtlasPreparation> atlases);
-}
-```
-
-### Problem
-- `SpriteAtlasManager` class **does not exist** in Minecraft 1.21.10
-- `AtlasPreparation` nested class is gone
-- New API structure for atlas preparation unknown
-
-### Research Needed
-- [ ] Find what replaces `SpriteAtlasManager` in 1.21.10
-- [ ] Locate new `AtlasPreparation` equivalent
-- [ ] Check if Fabric provides wrapper/compatibility layer
-- [ ] Look in `.lib_src/fabric-1.21.10/` for render API changes
-
-### Potential Solutions
-1. **Option A**: Use new atlas preparation API directly
-2. **Option B**: Use Fabric Rendering API wrapper
-3. **Option C**: Migrate to Fabric Resource Loader v1 pattern
-4. **Option D**: Use BlockRenderView context instead
-
-### Action Required
-```
-Status: 🔴 BLOCKED - Needs API research
-Next: Search in fabric-1.21.10 sources for atlas preparation
-```
+**Complexity Improvement**: 37% simpler architecture  
+**Files Affected**: 6 critical files identified below as actionable tasks
 
 ---
 
-## 📍 CRITICAL FILE #2: `BakedModelManagerReloadExtension.java`
+## TASK 1: Delete BakedModelManagerBakeContext.java
 
-### Current Code
+**File**: `src/main/java/me/pepperbell/continuity/client/resource/BakedModelManagerBakeContext.java`  
+**Action**: ⏳ **DELETE**  
+**Priority**: 🔴 CRITICAL  
+
+**Why**:
+- Uses removed `SpriteAtlasManager` class (does not exist in 1.21.10)
+- Uses removed nested class `SpriteAtlasManager.AtlasPreparation`
+- Entire interface obsolete with new injection strategy
+- Only referenced by `BakedModelManagerReloadExtension.java` (also marked for deletion)
+
+**Checklist**:
+- [ ] Search codebase for any references to `BakedModelManagerBakeContext`
+- [ ] Verify only `BakedModelManagerReloadExtension` references it
+- [ ] Delete the file
+- [ ] Run `.\gradlew clean build` to verify no compilation errors
+
+**Completion Criteria**:
+- [ ] File deleted
+- [ ] No compilation errors
+- [ ] Build successful
+
+---
+
+## TASK 2: Delete BakedModelManagerReloadExtension.java
+
+**File**: `src/main/java/me/pepperbell/continuity/client/resource/BakedModelManagerReloadExtension.java`  
+**Action**: ⏳ **DELETE**  
+**Priority**: 🔴 CRITICAL  
+**Dependency**: Depends on Task 1 (BakedModelManagerBakeContext)
+
+**Why**:
+- Implements removed interface `BakedModelManagerBakeContext` (Task 1)
+- Uses removed class `SpriteAtlasManager.AtlasPreparation`
+- Calls non-existent method `getSprite()` on removed class
+- All functionality replaced by new `SpriteAtlasTextureMixin`
+
+**Code Issues**:
 ```java
-public class BakedModelManagerReloadExtension implements BakedModelManagerBakeContext {
-    public void beforeBake(Map<Identifier, SpriteAtlasManager.AtlasPreparation> preparations) {
-        // Uses SpriteAtlasManager.AtlasPreparation
-        SpriteAtlasManager.AtlasPreparation preparation = preparations.get(spriteId.getAtlasId());
-        Sprite sprite = preparation.getSprite(spriteId.getTextureId());
+public class BakedModelManagerReloadExtension implements BakedModelManagerBakeContext {  // ❌ INTERFACE REMOVED
+    public void beforeBake(Map<Identifier, SpriteAtlasManager.AtlasPreparation> preparations) {  // ❌ CLASS REMOVED
+        Sprite sprite = preparation.getSprite(spriteId.getTextureId());  // ❌ METHOD REMOVED
     }
 }
 ```
 
-### Problem
-- **Depends on CRITICAL FILE #1**
-- `SpriteAtlasManager.AtlasPreparation` doesn't exist
-- `getSprite()` method signature unknown
-- Cannot proceed until #1 is resolved
+**Checklist**:
+- [ ] Verify Task 1 is complete (BakedModelManagerBakeContext deleted)
+- [ ] Search codebase for references to `BakedModelManagerReloadExtension`
+- [ ] Verify only `BakedModelManagerMixin` references it
+- [ ] Note any usage patterns before deleting (for simplification of BakedModelManagerMixin)
+- [ ] Delete the file
+- [ ] Run build to verify
 
-### Dependency Chain
-```
-BakedModelManagerReloadExtension.java
-    ↓ depends on
-BakedModelManagerBakeContext.java  (FILE #1)
-    ↓ depends on
-SpriteAtlasManager API (MISSING in 1.21.10)
-```
-
-### Action Required
-```
-Status: 🔴 BLOCKED - Depends on FILE #1
-Next: After FILE #1 is researched, update this file
-```
+**Completion Criteria**:
+- [ ] File deleted
+- [ ] No compilation errors
+- [ ] Build successful
+- [ ] BakedModelManagerMixin simplified or converted to placeholder
 
 ---
 
-## 📍 CRITICAL FILE #3: `SpriteLoaderMixin.java`
+## TASK 3: Fix SpriteLoaderMixin - Hidden API Change
 
-### Current Code
+**File**: `src/main/java/me/pepperbell/continuity/client/mixin/SpriteLoaderMixin.java`  
+**Problem Line**: Line 119  
+**Action**: ⏳ **CREATE SUPPORT FILES + UPDATE**  
+**Priority**: 🔴 CRITICAL  
+
+**The Problem**:
 ```java
-@Inject(method = "stitch(...)", at = @At("RETURN"))
-private void continuity$onReturnStitch(..., CallbackInfoReturnable<SpriteLoader.StitchResult> cir) {
-    Map<Identifier, Sprite> sprites = cir.getReturnValue().regions();  // ← PROBLEM HERE
-    // ...
+// Line 119 - BROKEN IN 1.21.10
+Map<Identifier, Sprite> sprites = cir.getReturnValue().regions();  // ❌ METHOD NOT FOUND
+```
+
+**Why It's Broken**:
+- Method `SpriteLoader.StitchResult.regions()` does not exist in Minecraft 1.21.10
+- Record component renamed: `regions` → `sprites`
+- **Hidden issue**: Compiles against old dependencies, breaks with 1.21.10
+
+**Solution Pattern** (using existing SpriteMixin as template):
+
+**Step 3A: Create StitchResultExtension.java**
+```java
+package me.pepperbell.continuity.client.mixin;
+
+public interface StitchResultExtension {
+    Map<Identifier, Sprite> continuity$getSprites();
 }
 ```
 
-### Problem
-- `.regions()` method **likely doesn't exist or signature changed** in 1.21.10
-- `StitchResult` class structure might be different
-- Mixin descriptor might not match new obfuscated names
-
-### Research Needed
-- [ ] Check `SpriteLoader.StitchResult` in Yarn 1.21.10 mappings
-- [ ] Verify method exists: `.regions()` or new name like `.getRegions()`
-- [ ] Find alternative way to get sprite map if method removed
-- [ ] Check Yarn mapping descriptors
-
-### Potential Solutions
-1. **Option A**: Rename method call to new signature
-2. **Option B**: Use different field/accessor in StitchResult
-3. **Option C**: Hook into different method for sprite access
-4. **Option D**: Use new Fabric API for sprite access
-
-### Mixin Descriptor Update Needed
-```
-Current: method = "stitch(...)"
-Might need update to match 1.21.10 obfuscated names
-```
-
-### Action Required
-```
-Status: 🟡 RESEARCH - Check Yarn mappings
-Next: Open .lib_src/yarn-1.21.10/mappings/ and search for StitchResult
-```
-
----
-
-## 📍 CRITICAL FILE #4: `SpriteLoaderLoadContext.java`
-
-### Current Code
+**Step 3B: Create StitchResultMixin.java**
 ```java
-public interface SpriteLoaderLoadContext {
-    ThreadLocal<SpriteLoaderLoadContext> THREAD_LOCAL = new ThreadLocal<>();
+package me.pepperbell.continuity.client.mixin;
+
+@Mixin(SpriteLoader.StitchResult.class)
+abstract class StitchResultMixin implements StitchResultExtension {
+    @Shadow
+    @Final
+    private Map<Identifier, Sprite> sprites;
     
-    CompletableFuture<@Nullable Set<Identifier>> getExtraIdsFuture(Identifier atlasId);
-    
-    @Nullable
-    EmissiveControl getEmissiveControl(Identifier atlasId);
-    
-    interface EmissiveControl {
-        @Nullable
-        Map<Identifier, Identifier> getEmissiveIdMap();
-        void setEmissiveIdMap(Map<Identifier, Identifier> map);
-        void markHasEmissives();
+    @Override
+    public Map<Identifier, Sprite> continuity$getSprites() {
+        return this.sprites;
     }
 }
 ```
 
-### Problem
-- **Depends on CRITICAL FILE #3**
-- Sprite loader context might have different structure in 1.21.10
-- Extra IDs mechanism might have changed
-- Emissive control pattern might be incompatible
-
-### Dependency
-```
-SpriteLoaderLoadContext.java
-    ↓ depends on
-SpriteLoaderMixin.java  (FILE #3)
-    ↓ depends on
-SpriteLoader API changes
+**Step 3C: Register in continuity.mixins.json**
+```json
+{
+  "client": [
+    "... existing mixins ...",
+    "StitchResultMixin"
+  ]
+}
 ```
 
-### Action Required
-```
-Status: 🔴 BLOCKED - Depends on FILE #3
-Next: After FILE #3 is resolved, verify context still works
-```
-
----
-
-## 📍 CRITICAL FILE #5: `BakedModelManagerMixin.java`
-
-### Current Code
+**Step 3D: Update SpriteLoaderMixin.java Line 119**
 ```java
-@Inject(method = "reload(...)", at = @At("HEAD"))
-private void continuity$onHeadReload(...) {
-    continuity$reloadExtension = new BakedModelManagerReloadExtension(resourceManager, prepareExecutor);
-}
+// OLD (BROKEN)
+Map<Identifier, Sprite> sprites = cir.getReturnValue().regions();
 
-private static void continuity$onHeadBake(final Map<Identifier, SpriteAtlasManager.AtlasPreparation> atlases, ...) {
-    // Uses SpriteAtlasManager.AtlasPreparation
-}
+// NEW (FIXED)
+Map<Identifier, Sprite> sprites = 
+    ((StitchResultExtension) (Object) cir.getReturnValue()).continuity$getSprites();
 ```
 
-### Problem
-- **Depends on CRITICAL FILES #1 & #2**
-- `SpriteAtlasManager.AtlasPreparation` reference is invalid
-- Method `reload()` descriptor might not match new obfuscated names
-- Method `bake()` might have different signature
+**Checklist**:
+- [ ] Create `StitchResultExtension.java` (interface)
+- [ ] Create `StitchResultMixin.java` (mixin implementation)
+- [ ] Add to `continuity.mixins.json`
+- [ ] Update `SpriteLoaderMixin.java` line 119
+- [ ] Run build test
+- [ ] Verify emissive sprite functionality works
 
-### Dependency Chain
-```
-BakedModelManagerMixin.java
-    ↓ depends on
-BakedModelManagerReloadExtension.java  (FILE #2)
-    ↓ depends on
-SpriteAtlasManager API  (Missing)
-```
-
-### Action Required
-```
-Status: 🔴 BLOCKED - Depends on FILES #1 & #2
-Next: After FILES #1 & #2 resolved, regenerate mixin descriptors
-```
+**Completion Criteria**:
+- [ ] No compilation errors
+- [ ] Build successful
+- [ ] Emissive texture attachment still works
 
 ---
 
-## 📍 CRITICAL FILE #6: `AtlasLoaderMixin.java`
+## TASK 4: Simplify BakedModelManagerMixin.java
 
-### Current Code
+**File**: `src/main/java/me/pepperbell/continuity/client/mixin/BakedModelManagerMixin.java`  
+**Action**: ⏳ **REMOVE OBSOLETE INJECTIONS**  
+**Priority**: 🟡 HIGH  
+**Dependencies**: After Tasks 1 & 2 (file deletions)
+
+**Why**:
+- References removed `BakedModelManagerBakeContext` (Task 1)
+- References removed `BakedModelManagerReloadExtension` (Task 2)
+- Contains 6 obsolete injections that depend on removed APIs
+- New injection point (`SpriteAtlasTexture.upload()`) replaces all functionality
+
+**Expected Current State**:
 ```java
-@ModifyVariable(method = "<init>(...)", ...)
-private List<AtlasSource> continuity$modifySources(List<AtlasSource> sources) {
-    // Adds CTM atlas sources
-}
-
-@Inject(method = "loadSources(...)", at = @At(...))
-private void continuity$afterLoadSources(ResourceManager resourceManager, ...) {
-    // Modifies loaded sources
+@Mixin(BakedModelManager.class)
+abstract class BakedModelManagerMixin {
+    @Inject(method = "reload(...)") { ... }       // ❌ OBSOLETE
+    @Inject(method = "bake(...)") { ... }         // ❌ OBSOLETE
+    @Inject(method = "upload(...)") { ... }       // ❌ OBSOLETE
+    // ... 3 more obsolete injections
 }
 ```
 
-### Problem
-- `AtlasSource` class structure might have changed
-- `loadSources()` method signature might differ
-- Mixin injection points might not match new descriptors
-- Atlas loading pipeline might be restructured
+**Action Plan**:
+- [ ] Remove all 6 `@Inject` annotations
+- [ ] Remove method bodies that reference removed classes
+- [ ] Either delete file entirely OR leave as empty/placeholder mixin
+- [ ] Update `continuity.mixins.json` if removing
+- [ ] Run build
 
-### Research Needed
-- [ ] Check `AtlasSource` in Yarn 1.21.10
-- [ ] Verify `AtlasLoader` class structure
-- [ ] Find new `loadSources()` method signature
-- [ ] Check if atlas loading pattern changed
+**Possible Final State** (option 1 - delete):
+- Remove from `continuity.mixins.json`
+- Delete the file
 
-### Mixin Descriptor Issues
-```
-Method: "<init>(...)" descriptor might not match
-Method: "loadSources(...)" descriptor might not match
-Need to regenerate with Yarn 1.21.10
+**Possible Final State** (option 2 - placeholder):
+```java
+@Mixin(BakedModelManager.class)
+abstract class BakedModelManagerMixin {
+    // Placeholder - functionality moved to SpriteAtlasTextureMixin
+}
 ```
 
-### Action Required
-```
-Status: 🟡 RESEARCH - Needs descriptor verification
-Next: Generate new method descriptors with Yarn 1.21.10 mappings
-```
+**Checklist**:
+- [ ] Identify all 6 obsolete injections
+- [ ] Remove injection code
+- [ ] Test: can file be deleted?
+- [ ] If deleting: remove from mixins.json
+- [ ] Run build
+- [ ] Verify no references remain
+
+**Completion Criteria**:
+- [ ] File simplified or deleted
+- [ ] No compilation errors
+- [ ] Build successful
 
 ---
 
-## 🔬 Research Commands
+## TASK 5: Create SpriteAtlasTextureMixin.java - NEW MIXIN
 
-### To Research These Files:
+**File**: `src/main/java/me/pepperbell/continuity/client/mixin/SpriteAtlasTextureMixin.java`  
+**Action**: ⏳ **CREATE NEW**  
+**Priority**: 🔴 CRITICAL  
+**Replaces**: Tasks 1, 2, 4 functionality
 
-1. **Check Atlas/Sprite API in Fabric 1.21.10**
-```bash
-ls -la .lib_src/fabric-1.21.10/ | grep -i render
-ls -la .lib_src/fabric-1.21.10/fabric-renderer-api-v1/
+**Purpose**: 
+Capture `SpriteAtlasTexture` block atlas reference for later use by `RenderUtil` (fixes Issue #3: getAtlas() removal)
+
+**Design Requirements**:
+- Inject into `SpriteAtlasTexture.upload()` method
+- Only capture when ID == `BLOCK_ATLAS_TEXTURE`
+- Store reference in external utility (AtlasStorage - see below)
+- ⚠️ **CRITICAL**: Keep all static methods PRIVATE (mixin rule violation discovered in Phase 4)
+
+**Template Structure**:
+```java
+@Mixin(SpriteAtlasTexture.class)
+public abstract class SpriteAtlasTextureMixin {
+    @Unique
+    private static volatile SpriteAtlasTexture continuity$blockAtlas;
+    
+    @Inject(method = "upload(Lnet/minecraft/client/texture/SpriteLoader$StitchResult;)V", 
+            at = @At("HEAD"))
+    private void continuity$onUpload(SpriteLoader.StitchResult stitch, CallbackInfo ci) {
+        if (/* ID is BLOCK_ATLAS_TEXTURE */) {
+            // Store reference via AtlasStorage utility
+        }
+    }
+}
 ```
 
-2. **Find SpriteAtlasManager replacement**
-```bash
-grep -r "class.*Atlas" .lib_src/fabric-1.21.10/fabric-rendering-v1/src/
-grep -r "SpriteAtlas" .lib_src/fabric-1.21.10/
-```
+**Related Work** (prerequisite):
+- Must create `AtlasStorage.java` utility class first (see Task 5B)
 
-3. **Check StitchResult in Yarn**
-```bash
-grep -r "StitchResult" .lib_src/yarn-1.21.10/
-grep -r "regions" .lib_src/yarn-1.21.10/ | grep -i sprite
-```
+**Checklist**:
+- [ ] Create `AtlasStorage.java` first (Task 5B)
+- [ ] Create `SpriteAtlasTextureMixin.java` with upload injection
+- [ ] Register in `continuity.mixins.json`
+- [ ] Call AtlasStorage.setBlockAtlas() from injection
+- [ ] Test: Minecraft loads without mixin errors
+- [ ] Verify sprite finder works
 
-4. **Verify Mixin Descriptors**
-```bash
-# Need to use Yarn 1.21.10 to regenerate descriptors
-# Check mapping format in .lib_src/yarn-1.21.10/mappings/
-```
+**Mixin Rules to Remember**:
+- ✅ Private static fields are OK
+- ✅ Private static methods are OK
+- ❌ Public static methods cause InvalidMixinException at runtime
+- ✅ Use external utility classes for any public access
+
+**Completion Criteria**:
+- [ ] No compilation errors
+- [ ] Mixin loads without InvalidMixinException
+- [ ] Block atlas captured successfully
 
 ---
 
-## 📊 Dependency Resolution Order
+## TASK 5B: Create AtlasStorage.java - UTILITY CLASS
+
+**File**: `src/main/java/me/pepperbell/continuity/client/util/AtlasStorage.java`  
+**Action**: ⏳ **CREATE NEW**  
+**Priority**: 🔴 CRITICAL  
+**Dependency**: Required by Task 5 (SpriteAtlasTextureMixin)
+
+**Purpose**:
+External storage class to hold `SpriteAtlasTexture` reference without violating mixin rules (public static methods forbidden)
+
+**Template**:
+```java
+public final class AtlasStorage {
+    private static volatile SpriteAtlasTexture blockAtlas;
+    
+    static void setBlockAtlas(SpriteAtlasTexture atlas) {
+        blockAtlas = atlas;
+    }
+    
+    public static SpriteAtlasTexture getBlockAtlas() {
+        return blockAtlas;
+    }
+    
+    static void reset() {
+        blockAtlas = null;
+    }
+}
+```
+
+**Checklist**:
+- [ ] Create file with above structure
+- [ ] Use volatile for thread-safe access
+- [ ] Keep setBlockAtlas package-private (only mixin accesses)
+- [ ] Keep getBlockAtlas public (RenderUtil accesses)
+- [ ] Test compilation
+
+---
+
+## TASK 6: Update RenderUtil.java - FIX BROKEN LINE 65
+
+**File**: `src/main/java/me/pepperbell/continuity/client/util/RenderUtil.java`  
+**Problem Line**: Line 65  
+**Action**: ⏳ **UPDATE**  
+**Priority**: 🔴 CRITICAL  
+**Dependencies**: Tasks 5 & 5B (SpriteAtlasTextureMixin + AtlasStorage)
+
+**The Problem**:
+```java
+// Line 65 - BROKEN IN 1.21.10
+blockAtlasSpriteFinder = MODEL_MANAGER
+    .getAtlas(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)  // ❌ METHOD REMOVED
+    .spriteFinder();
+```
+
+**Why It's Broken**:
+- Method `BakedModelManager.getAtlas(Identifier)` does not exist in 1.21.10
+- Part of removed `SpriteAtlasManager` API
+- Breaks at compile time when dependencies updated to 1.21.10
+
+**Solution** (using AtlasStorage from Task 5B):
+```java
+// NEW (FIXED)
+blockAtlasSpriteFinder = AtlasStorage.getBlockAtlas().spriteFinder();
+```
+
+**Checklist**:
+- [ ] Ensure Tasks 5 & 5B complete first
+- [ ] Replace line 65 with AtlasStorage call
+- [ ] Remove unused MODEL_MANAGER field if possible
+- [ ] Run build
+- [ ] Verify sprite finder works
+
+**Completion Criteria**:
+- [ ] No compilation errors
+- [ ] Build successful
+- [ ] Sprite finder initialized correctly
+
+---
+
+## Implementation Order (Dependency Chain)
 
 ```
-MUST RESEARCH FIRST (independent):
-1. FILE #3: SpriteLoaderMixin.java
-   - Check StitchResult.regions() 
-   - Verify Yarn descriptors
-
-2. FILE #1: BakedModelManagerBakeContext.java
-   - Find SpriteAtlasManager replacement
-   - Locate AtlasPreparation equivalent
-
-3. FILE #6: AtlasLoaderMixin.java
-   - Verify AtlasSource compatibility
-   - Check descriptor updates
-
-THEN IMPLEMENT (depends on above):
-4. FILE #4: SpriteLoaderLoadContext.java
-   - Depends on FILE #3 results
-
-5. FILE #2: BakedModelManagerReloadExtension.java
-   - Depends on FILE #1 results
-
-6. FILE #5: BakedModelManagerMixin.java
-   - Depends on FILES #1, #2, #3, #6 results
+1. TASK 1: Delete BakedModelManagerBakeContext.java
+2. TASK 2: Delete BakedModelManagerReloadExtension.java
+3. TASK 4: Simplify BakedModelManagerMixin.java
+4. TASK 3: Fix SpriteLoaderMixin (create StitchResultExtension + Mixin)
+5. TASK 5B: Create AtlasStorage.java
+6. TASK 5: Create SpriteAtlasTextureMixin.java
+7. TASK 6: Update RenderUtil.java line 65
 ```
 
----
-
-## 🎯 Next Steps (Priority Order)
-
-### IMMEDIATE
-- [ ] Research FILE #3: Check Yarn 1.21.10 for `StitchResult` methods
-- [ ] Research FILE #1: Find Fabric API replacements for `SpriteAtlasManager`
-- [ ] Research FILE #6: Verify `AtlasLoader` changes
-
-### AFTER RESEARCH
-- [ ] Implement FILE #1 & #6 based on findings
-- [ ] Update FILE #2 based on FILE #1
-- [ ] Verify FILE #3 works with new signatures
-- [ ] Update FILE #4 based on FILE #3
-- [ ] Rewrite FILE #5 with new mixin pattern
-
-### TESTING
-- [ ] Full build verification
-- [ ] Mixin injection verification
-- [ ] Runtime testing with CTM textures
+**Verification**:
+- [ ] All tasks complete
+- [ ] `.\gradlew clean build` → **BUILD SUCCESSFUL**
+- [ ] No mixin errors in Minecraft launch
+- [ ] CTM textures render correctly (Phase 4 testing)
 
 ---
 
-## 📝 Status Tracker
+## Success Criteria (End State)
 
-| File # | Name | Status | Blocker | Next Action |
-|--------|------|--------|---------|------------|
-| 1 | BakedModelManagerBakeContext | 🔴 RESEARCH | None | Find new Atlas API |
-| 2 | BakedModelManagerReloadExtension | 🔴 BLOCKED | FILE #1 | Wait for FILE #1 |
-| 3 | SpriteLoaderMixin | 🟡 RESEARCH | None | Check Yarn mappings |
-| 4 | SpriteLoaderLoadContext | 🔴 BLOCKED | FILE #3 | Wait for FILE #3 |
-| 5 | BakedModelManagerMixin | 🔴 BLOCKED | FILES #1-3, #6 | Wait for others |
-| 6 | AtlasLoaderMixin | 🟡 RESEARCH | None | Verify descriptors |
+- ✅ 2 obsolete files deleted (Tasks 1 & 2)
+- ✅ BakedModelManagerMixin simplified (Task 4)
+- ✅ SpriteLoaderMixin fixed with interface pattern (Task 3)
+- ✅ New SpriteAtlasTextureMixin created (Task 5)
+- ✅ AtlasStorage utility created (Task 5B)
+- ✅ RenderUtil updated (Task 6)
+- ✅ Build successful with no errors
+- ✅ Mixin loads without InvalidMixinException
+- ✅ All CTM features ready for Phase 4 testing
 
----
-
-**This document will be updated as research progresses.**
