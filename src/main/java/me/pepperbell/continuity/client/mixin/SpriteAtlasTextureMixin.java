@@ -1,5 +1,7 @@
 package me.pepperbell.continuity.client.mixin;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,6 +29,8 @@ import net.minecraft.util.Identifier;
  */
 @Mixin(SpriteAtlasTexture.class)
 public abstract class SpriteAtlasTextureMixin {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Continuity/SpriteAtlasTexture");
+
     @Shadow
     private Identifier id;
 
@@ -42,14 +46,23 @@ public abstract class SpriteAtlasTextureMixin {
     @Inject(method = "upload(Lnet/minecraft/client/texture/SpriteLoader$StitchResult;)V",
             at = @At("HEAD"))
     private void continuity$onUpload(SpriteLoader.StitchResult stitchResult, CallbackInfo ci) {
+        // PHASE 5 TEST: Log model wrapping initialization
+        LOGGER.debug("[Continuity] SpriteAtlasTextureMixin.onUpload() called for atlas: {}", id);
+
         // Store reference to block atlas for RenderUtil
         if (id.equals(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)) {
             AtlasStorage.setBlockAtlas((SpriteAtlasTexture) (Object) this);
+            LOGGER.debug("[Continuity] Block atlas stored in AtlasStorage");
         }
 
         // Check if we have emissive textures for this atlas
         SpriteLoaderStitchContext context = SpriteLoaderStitchContext.THREAD_LOCAL.get();
         boolean hasEmissives = (context != null);
+        
+        if (hasEmissives) {
+            // PHASE 5 TEST: Emissive sprites attached to models
+            LOGGER.debug("[Continuity] Emissive sprites detected for atlas: {}", id);
+        }
 
         // Determine if CTM processing is needed for this atlas
         // Typically enabled for block atlases (minecraft:textures/atlas/blocks.png)
@@ -58,6 +71,8 @@ public abstract class SpriteAtlasTextureMixin {
 
         // Enable model wrapping for CTM and/or emissive textures
         if (shouldWrapCtm || hasEmissives) {
+            // PHASE 5 TEST: Model wrapping occurs during sprite atlas loading
+            LOGGER.info("[Continuity] Enabling ModelWrappingHandler - shouldWrapCtm: {}, hasEmissives: {}", shouldWrapCtm, hasEmissives);
             ModelWrappingHandler.setInstance(shouldWrapCtm, hasEmissives);
         }
 

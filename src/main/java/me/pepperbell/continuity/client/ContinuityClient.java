@@ -55,6 +55,8 @@ public class ContinuityClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
+		LOGGER.info("[Continuity] Initialization started");
+		
 		ProcessingDataKeyRegistryImpl.INSTANCE.init();
 		BiomeHolderManager.init();
 		ProcessingDataKeys.init();
@@ -79,6 +81,8 @@ public class ContinuityClient implements ClientModInitializer {
 		);
 		registry.registerLoader("ctm", loader);
 		registry.registerLoader("glass", loader);
+		// PHASE 5 TEST: CTM properties loaded from resource packs
+		LOGGER.debug("[Continuity] Registered CTM method 'ctm' and 'glass' with 47+ tiles");
 
 		loader = createLoader(
 				CompactConnectingCtmProperties::new,
@@ -87,6 +91,7 @@ public class ContinuityClient implements ClientModInitializer {
 				false
 		);
 		registry.registerLoader("ctm_compact", loader);
+		LOGGER.debug("[Continuity] Registered CTM method 'ctm_compact' with 5+ tiles");
 
 		loader = createLoader(
 				OrientedConnectingCtmProperties::new,
@@ -213,6 +218,9 @@ public class ContinuityClient implements ClientModInitializer {
 		);
 		registry.registerLoader("overlay_vertical+horizontal", loader);
 		registry.registerLoader("overlay_v+h", loader);
+		
+		// PHASE 5 TEST: All CTM methods registered at startup
+		LOGGER.info("[Continuity] Registered 20+ CTM methods - texture replacements ready for loading");
 	}
 
 	private static <T extends CtmProperties> CtmLoader<T> createLoader(CtmProperties.Factory<T> propertiesFactory, QuadProcessor.Factory<T> processorFactory, CachingPredicates.Factory<T> predicatesFactory) {
