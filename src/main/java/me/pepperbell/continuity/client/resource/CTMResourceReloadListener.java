@@ -6,11 +6,11 @@ import java.util.List;
 import me.pepperbell.continuity.client.ContinuityClient;
 import me.pepperbell.continuity.client.mixinterface.AtlasManagerAccess;
 import me.pepperbell.continuity.client.model.QuadProcessors;
-import me.pepperbell.continuity.client.resource.ModelWrappingCoordinator;
 import net.fabricmc.fabric.api.resource.ResourceReloadListenerKeys;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.AtlasManager;
+import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 
@@ -52,18 +52,23 @@ public class CTMResourceReloadListener implements SimpleSynchronousResourceReloa
 					((AtlasManagerAccess) MinecraftClient.getInstance().getBakedModelManager())
 							.continuity$getAtlasManager();
 
-			// Get the block atlas texture
-			// In 1.21.10, atlas IDs changed from "minecraft:textures/atlas/blocks.png" to
-			// "minecraft:blocks"
-			var blockAtlas = atlasManager.getAtlasTexture(Identifier.of("minecraft", "blocks"));
-
-			// Create processor holders with sprite lookup
+			// Create processor holders with sprite lookup that uses the correct atlas for each
+			// texture
 			List<QuadProcessors.ProcessorHolder> processorHolders =
 					result.createProcessorHolders(spriteId -> {
-						// Get sprite from the atlas texture directly using the texture ID
-						// SpriteIdentifier contains both atlas ID and texture ID - we only need the
-						// texture ID
-						return blockAtlas.getSprite(spriteId.getTextureId());
+						// Get the correct atlas for this sprite using its atlas ID
+						// The SpriteIdentifier already has the correct atlas ID from TextureUtil
+						SpriteAtlasTexture atlas =
+								atlasManager.getAtlasTexture(spriteId.getAtlasId());
+						if (atlas == null) {
+							ContinuityClient.LOGGER.warn(ContinuityClient.LOG_PREFIX
+									+ "CTMResourceReloadListener: Atlas not found for {}, texture {}",
+									spriteId.getAtlasId(), spriteId.getTextureId());
+							// Throw to fail fast - atlas should exist at this point
+							throw new RuntimeException("Atlas not found: " + spriteId.getAtlasId());
+						}
+						// Get sprite from the correct atlas using the texture ID
+						return atlas.getSprite(spriteId.getTextureId());
 					});
 
 			// Register the processors
