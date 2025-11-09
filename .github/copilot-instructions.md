@@ -1,12 +1,35 @@
 # GitHub Copilot Instructions
 
+## 🚀 QUICK START - IMPORTANT!
+
+> **Status**: Upgrading from Minecraft 1.21.6 → 1.21.10  
+> **Java Version**: Java 21 (LTS - staying on this version, NO Java 23+ support)  
+> **Current Phase**: File Analysis (Phase 1)  
+> **Documents**: Read `UPGRADE_STRATEGY.md` and `ANALYSIS_REPORT.md` first!
+
+### Key Strategic Decisions ✅
+1. **Java 21 Only** - No Java 23+ preview features (LTS stability preferred)
+2. **File-by-File Analysis** - Every Java file analyzed before porting
+3. **Critical Files First** - 6 CRITICAL files identified, must fix before others
+
+### Must-Read Documents (in project root)
+- 📋 `UPGRADE_STRATEGY.md` - Strategic overview & file checklist
+- 📊 `ANALYSIS_REPORT.md` - Detailed file-by-file breakdown with risk levels
+
+### Current Work Focus
+- ✅ Phase 1A: Framework created (strategic docs)
+- ⏳ Phase 1B: Critical files analysis (in progress)
+- ⏳ Phase 2: Implementation (pending)
+
+---
+
 ## Project Overview
 **Continuity** is a Fabric mod that enables OptiFine-compatible connected textures, emissive textures, and custom block layers without requiring OptiFine. It's a client-side Minecraft mod targeting Java 21.
 
 ### Build & Environment
 - **Build Command**: `.\gradlew clean build` (Windows PowerShell 7.5)
 - **Java Version**: 21 (configured in build.gradle)
-- **Minecraft Version**: 1.21.10 (see `gradle.properties`)
+- **Minecraft Version**: upgrade to 1.21.10 from 1.21.6 (see `gradle.properties`)
 - **Target Loader**: Fabric (works on NeoForge via Connector & Forgified Fabric API)
 - **Changelog Location**: `.github/changelog/` - create markdown files for all code changes
 - **Required Library sources**: Fabric api (1.21.6 & 1.21.10) and Yarn (1.21.6 & 1.21.10) are in the `.lib_src/`
