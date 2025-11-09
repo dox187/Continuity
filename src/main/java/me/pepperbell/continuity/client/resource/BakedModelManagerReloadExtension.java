@@ -34,6 +34,16 @@ public class BakedModelManagerReloadExtension {
 		ModelWrappingHandler.resetInstance();
 	}
 
+	/**
+	 * Gets the CompletableFuture for CTM properties loading. Used by CtmInitializationCoordinator
+	 * to synchronize property loading completion.
+	 * 
+	 * @return CompletableFuture that completes when CTM properties are loaded
+	 */
+	public CompletableFuture<CtmPropertiesLoader.LoadingResult> getCtmLoadingFuture() {
+		return ctmLoadingResultFuture;
+	}
+
 	public void setContext() {
 		SpriteLoaderLoadContext.THREAD_LOCAL.set(spriteLoaderLoadContext);
 	}

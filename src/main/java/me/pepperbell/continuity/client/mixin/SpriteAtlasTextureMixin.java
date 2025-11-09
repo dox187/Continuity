@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import me.pepperbell.continuity.client.mixinterface.StitchResultExtension;
 import me.pepperbell.continuity.client.resource.BakedModelManagerReloadExtension;
-import me.pepperbell.continuity.client.resource.CtmResourceReloadListener;
+import me.pepperbell.continuity.client.resource.CtmInitializationCoordinator;
 import me.pepperbell.continuity.client.resource.ModelWrappingHandler;
 import me.pepperbell.continuity.client.resource.SpriteLoaderStitchContext;
 import me.pepperbell.continuity.client.util.AtlasStorage;
@@ -76,8 +76,9 @@ public abstract class SpriteAtlasTextureMixin {
         // PHASE 5 FIX: Call beforeBake() and apply() to load CTM properties and create quad
         // processors
         if (shouldWrapCtm) {
-            BakedModelManagerReloadExtension extension =
-                    CtmResourceReloadListener.BakedModelManagerReloadExtensionHolder.get();
+            // Get coordinator and wait for extension to be ready
+            CtmInitializationCoordinator coordinator = CtmInitializationCoordinator.getInstance();
+            BakedModelManagerReloadExtension extension = coordinator.getExtensionWhenReady();
 
             if (extension != null) {
                 LOGGER.info(
@@ -104,10 +105,15 @@ public abstract class SpriteAtlasTextureMixin {
                 // Register quad processors
                 extension.apply();
 
+                // Mark initialization as complete
+                coordinator.markComplete();
+
                 LOGGER.info("[Continuity] CTM quad processors registered successfully");
             } else {
-                LOGGER.warn(
-                        "[Continuity] BakedModelManagerReloadExtension is null! CTM will not work.");
+                // Extension not ready yet (happens on initial game load)
+                // CTM properties will load on next resource reload (F3+T)
+                LOGGER.debug(
+                        "[Continuity] CTM extension not ready during initial atlas upload. Will be available after next resource reload (F3+T)");
             }
         }
 

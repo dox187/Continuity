@@ -1,12 +1,18 @@
 package me.pepperbell.continuity.client;
 
+import me.pepperbell.continuity.client.resource.CtmInitializationCoordinator;
+import me.pepperbell.continuity.client.resource.CtmResourceReloadListener;
+import me.pepperbell.continuity.client.properties.CtmPropertiesLoader;
+import net.fabricmc.fabric.api.resource.ResourceReloadListenerRegistry;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import me.pepperbell.continuity.api.client.CtmProperties;
 
 import me.pepperbell.continuity.api.client.CachingPredicates;
 import me.pepperbell.continuity.api.client.CtmLoader;
 import me.pepperbell.continuity.api.client.CtmLoaderRegistry;
-import me.pepperbell.continuity.api.client.CtmProperties;
 import me.pepperbell.continuity.api.client.QuadProcessor;
 import me.pepperbell.continuity.client.processor.BaseCachingPredicates;
 import me.pepperbell.continuity.client.processor.CompactCtmQuadProcessor;
@@ -67,6 +73,51 @@ public class ContinuityClient implements ClientModInitializer {
 		// PHASE 5: Register CTM properties resource reload listener
 		// This initializes BakedModelManagerReloadExtension which loads CTM properties
 		me.pepperbell.continuity.client.resource.CtmResourceReloadListener.init();
+
+        // ========================================================
+        // PHASE 6: EAGER CTM PROPERTIES LOADING FOR INITIAL LOAD
+        // ========================================================
+        
+        // Initialize coordinator
+        CtmInitializationCoordinator coordinator = CtmInitializationCoordinator.getInstance();
+        
+        try {
+            // Get Minecraft's resource manager
+            MinecraftClient client = MinecraftClient.getInstance();
+            ResourceManager resourceManager = client.getResourceManager();
+            
+            if (resourceManager == null) {
+                LOGGER.warn("[Continuity] ResourceManager not available during init - deferring CTM load to F3+T reload");
+            } else {
+                LOGGER.info("[Continuity] Loading CTM properties eagerly for initial world load...");
+                
+                // Load CTM properties synchronously
+                long startTime = System.currentTimeMillis();
+                java.util.Map<String, me.pepperbell.continuity.client.properties.CtmProperties> properties = 
+                    CtmPropertiesLoader.load(resourceManager);
+                
+                long loadTime = System.currentTimeMillis() - startTime;
+                LOGGER.info("[Continuity] Loaded {} CTM property files in {}ms", properties.size(), loadTime);
+                
+                // Create extension with loaded properties
+                me.pepperbell.continuity.client.resource.BakedModelManagerReloadExtension extension =
+                    new me.pepperbell.continuity.client.resource.BakedModelManagerReloadExtension(properties);
+                
+                // Set extension in coordinator
+                coordinator.setExtensionEarly(extension);
+                
+                // Mark state as PROPERTIES_LOADED so upload() gets extension immediately
+                coordinator.setStateEarly(CtmInitializationCoordinator.State.PROPERTIES_LOADED);
+                
+                LOGGER.info("[Continuity] CTM properties loaded eagerly - initial world load will support CTM textures");
+            }
+            
+        } catch (Exception e) {
+            LOGGER.warn("[Continuity] Failed to load CTM properties eagerly - CTM will be available after F3+T reload", e);
+            // Graceful degradation: F3+T reload will still work
+            // Reset coordinator to IDLE state for clean F3+T reload
+            coordinator.reset();
+        }
 
 		FabricLoader.getInstance().getModContainer(ID).ifPresent(container -> {
 			ResourceManagerHelper.registerBuiltinResourcePack(asId("default"), container,
