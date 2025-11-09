@@ -34,10 +34,19 @@ public class CtmBlockStateModel extends WrappedBlockStateModel {
 		this.defaultState = defaultState;
 	}
 
+	private static boolean loggedOnce = false;
+
 	@Override
 	public void emitQuads(QuadEmitter emitter, BlockRenderView blockView, BlockPos pos,
 			BlockState state, Random random, Predicate<@Nullable Direction> cullTest) {
 		BlockState renderState = Objects.requireNonNullElse(state, defaultState);
+
+		if (!loggedOnce) {
+			me.pepperbell.continuity.client.ContinuityClient.LOGGER
+					.info(me.pepperbell.continuity.client.ContinuityClient.LOG_PREFIX
+							+ "CtmBlockStateModel.emitQuads() CALLED for state: {}", renderState);
+			loggedOnce = true;
+		}
 
 		if (!shouldApplyCtm()) {
 			emitWrapped(emitter, blockView, pos, renderState, random, cullTest);

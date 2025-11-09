@@ -77,4 +77,15 @@ public class ModelWrappingCoordinator {
         ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
                 + "ModelWrappingCoordinator: Reset for new resource reload");
     }
+
+    /**
+     * Resets only the modelsWrapped flag. Used during setModels() to prepare for new model wrapping
+     * without clearing the atlasLoadingComplete flag that's being managed separately.
+     */
+    public static void resetModelsWrapped() {
+        modelsWrapped.set(false);
+
+        ContinuityClient.LOGGER.debug(ContinuityClient.LOG_PREFIX
+                + "ModelWrappingCoordinator: Reset modelsWrapped flag for new models");
+    }
 }

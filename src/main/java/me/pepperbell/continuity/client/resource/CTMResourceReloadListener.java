@@ -37,8 +37,15 @@ public class CTMResourceReloadListener implements SimpleSynchronousResourceReloa
 
 	@Override
 	public void reload(ResourceManager manager) {
-		// Reset the model wrapping coordinator for the new resource reload
-		ModelWrappingCoordinator.reset();
+		// *** FIX: DO NOT reset here - it clears atlasLoadingComplete mid-cycle! ***
+		// The resetModelsWrapped() is already called in BlockModelsMixin.onHeadSetModels()
+		// We don't need a full reset here because:
+		// 1. modelsWrapped is already reset by resetModelsWrapped()
+		// 2. atlasLoadingComplete will be set by SpriteAtlasTextureMixin.upload()
+		// 3. blockModels will be set by BlockModelsMixin.onTailSetModels()
+		// A full reset here would clear atlasLoadingComplete before setBlockModels() runs!
+
+		// REMOVED: ModelWrappingCoordinator.reset();
 
 		try {
 			// Load CTM properties

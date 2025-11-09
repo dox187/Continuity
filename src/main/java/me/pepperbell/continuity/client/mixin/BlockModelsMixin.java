@@ -15,6 +15,14 @@ abstract class BlockModelsMixin {
 	private void continuity$onHeadSetModels(CallbackInfo ci) {
 		SpriteCalculator.clearCache();
 
+		// *** FIX: Only reset modelsWrapped, not atlasLoadingComplete ***
+		// The atlasLoadingComplete flag is set by SpriteAtlasTextureMixin.upload()
+		// We must preserve it during the resource reload cycle to ensure proper coordination.
+		// However, we need to reset it BEFORE atlas upload starts (which we can't control here)
+		// So we let CTMResourceReloadListener.reload() handle the full reset AFTER setModels()
+		// For now, just ensure we prepare for new model wrapping
+		ModelWrappingCoordinator.resetModelsWrapped();
+
 		// *** FIX: Load CTM properties synchronously BEFORE model wrapping ***
 		// The CTMResourceReloadListener runs too late (after models are set)
 		// So we load CTM data here to ensure it's ready for wrapping

@@ -8,6 +8,7 @@
     "BakedModelManagerMixin",
     "BlockModelsAccessor",
     "BlockModelsMixin",
+    "BlockModelRendererMixin",
     "LifecycledResourceManagerImplMixin",
     "RenderLayersMixin",
     "SpriteMixin",
