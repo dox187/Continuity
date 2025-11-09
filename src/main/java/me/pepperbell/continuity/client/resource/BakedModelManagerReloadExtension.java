@@ -17,18 +17,6 @@ import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 
 public class BakedModelManagerReloadExtension {
-	/**
-	 * PHASE 7: Global context for PreparableModelLoadingPlugin.
-	 * 
-	 * <p>
-	 * PreparableModelLoadingPlugin.initialize() runs on a Worker thread, but atlas creation happens
-	 * on the Render thread. ThreadLocal doesn't work across threads, so we need a global volatile
-	 * variable that can be accessed from any thread.
-	 * 
-	 * <p>
-	 * This is set by PreparableModelLoadingPlugin.initialize() and read by
-	 * SpriteLoaderMixin.continuity$modifySupplier() on the Render thread.
-	 */
 	private static volatile SpriteLoaderLoadContextImpl globalContextForInitialLoad = null;
 
 	private final CompletableFuture<CtmPropertiesLoader.LoadingResult> ctmLoadingResultFuture;
@@ -60,23 +48,14 @@ public class BakedModelManagerReloadExtension {
 
 	public void setContext() {
 		SpriteLoaderLoadContext.THREAD_LOCAL.set(spriteLoaderLoadContext);
-		// PHASE 7: Also set global context for cross-thread access
 		globalContextForInitialLoad = spriteLoaderLoadContext;
 	}
 
 	public void clearContext() {
 		SpriteLoaderLoadContext.THREAD_LOCAL.set(null);
-		// PHASE 7: Also clear global context
 		globalContextForInitialLoad = null;
 	}
 
-	/**
-	 * PHASE 7: Gets the global context for initial load.
-	 * 
-	 * <p>
-	 * This is used by SpriteLoaderMixin when ThreadLocal is not set (e.g., during initial load when
-	 * PreparableModelLoadingPlugin runs on a worker thread).
-	 */
 	@Nullable
 	public static SpriteLoaderLoadContextImpl getGlobalContext() {
 		return globalContextForInitialLoad;

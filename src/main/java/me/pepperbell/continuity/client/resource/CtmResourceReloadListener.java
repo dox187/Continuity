@@ -36,45 +36,31 @@ import net.minecraft.util.Identifier;
  * Without this listener, CTM properties are never loaded and connected textures cannot function.
  */
 public class CtmResourceReloadListener implements SynchronousResourceReloader {
-    public static final Identifier ID = ContinuityClient.asId("ctm_properties");
-    private static final CtmResourceReloadListener INSTANCE = new CtmResourceReloadListener();
+        public static final Identifier ID = ContinuityClient.asId("ctm_properties");
+        private static final CtmResourceReloadListener INSTANCE = new CtmResourceReloadListener();
 
-    /**
-     * Registers this listener with Fabric's new ResourceLoader API. Must be called during mod
-     * initialization.
-     */
-    public static void init() {
-        ContinuityClient.LOGGER
-                .info("[Continuity] Registering CTM resource reloader with new API...");
+        /**
+         * Registers this listener with Fabric's new ResourceLoader API. Must be called during mod
+         * initialization.
+         */
+        public static void init() {
+                ResourceLoader resourceLoader = ResourceLoader.get(ResourceType.CLIENT_RESOURCES);
 
-        ResourceLoader resourceLoader = ResourceLoader.get(ResourceType.CLIENT_RESOURCES);
+                resourceLoader.registerReloader(ID, INSTANCE);
+                resourceLoader.addReloaderOrdering(ID, ResourceReloaderKeys.Client.TEXTURES);
+        }
 
-        // Register the reloader
-        resourceLoader.registerReloader(ID, INSTANCE);
+        @Override
+        public void reload(ResourceManager manager) {
+                // Get coordinator instance
+                CtmInitializationCoordinator coordinator =
+                                CtmInitializationCoordinator.getInstance();
 
-        // PHASE 7: Set ordering to run BEFORE textures are loaded
-        // This ensures CTM properties are loaded before sprite atlas upload
-        resourceLoader.addReloaderOrdering(ID, ResourceReloaderKeys.Client.TEXTURES);
+                // Reset coordinator for new reload cycle
+                coordinator.reset();
 
-        ContinuityClient.LOGGER.info(
-                "[Continuity] CtmResourceReloadListener registered - will load before textures");
-    }
-
-    @Override
-    public void reload(ResourceManager manager) {
-        ContinuityClient.LOGGER.info(
-                "[Continuity] CtmResourceReloadListener.reload() - starting CTM initialization");
-
-        // Get coordinator instance
-        CtmInitializationCoordinator coordinator = CtmInitializationCoordinator.getInstance();
-
-        // Reset coordinator for new reload cycle
-        coordinator.reset();
-
-        // Start new initialization sequence (creates extension, starts async property loading)
-        coordinator.startReload(manager);
-
-        ContinuityClient.LOGGER.info(
-                "[Continuity] CtmResourceReloadListener.reload() - CTM initialization started");
-    }
+                // Start new initialization sequence (creates extension, starts async property
+                // loading)
+                coordinator.startReload(manager);
+        }
 }

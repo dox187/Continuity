@@ -56,8 +56,6 @@ public class ContinuityClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
-		LOGGER.info("[Continuity] Initialization started");
-
 		ProcessingDataKeyRegistryImpl.INSTANCE.init();
 		BiomeHolderManager.init();
 		ProcessingDataKeys.init();
@@ -66,8 +64,6 @@ public class ContinuityClient implements ClientModInitializer {
 		RenderUtil.ReloadListener.init();
 		CustomBlockLayers.ReloadListener.init();
 
-		// PHASE 7: Register CTM properties resource reload listener
-		// Ordering ensures this runs BEFORE textures load, enabling CTM on initial load
 		me.pepperbell.continuity.client.resource.CtmResourceReloadListener.init();
 
 		FabricLoader.getInstance().getModContainer(ID).ifPresent(container -> {
@@ -90,13 +86,10 @@ public class ContinuityClient implements ClientModInitializer {
 				new SimpleQuadProcessor.Factory<>(new CtmSpriteProvider.Factory()));
 		registry.registerLoader("ctm", loader);
 		registry.registerLoader("glass", loader);
-		// PHASE 5 TEST: CTM properties loaded from resource packs
-		LOGGER.debug("[Continuity] Registered CTM method 'ctm' and 'glass' with 47+ tiles");
 
 		loader = createLoader(CompactConnectingCtmProperties::new,
 				new TileAmountValidator.AtLeast<>(5), new CompactCtmQuadProcessor.Factory(), false);
 		registry.registerLoader("ctm_compact", loader);
-		LOGGER.debug("[Continuity] Registered CTM method 'ctm_compact' with 5+ tiles");
 
 		loader = createLoader(OrientedConnectingCtmProperties::new,
 				new TileAmountValidator.Exactly<>(4),
@@ -185,18 +178,8 @@ public class ContinuityClient implements ClientModInitializer {
 		registry.registerLoader("overlay_vertical+horizontal", loader);
 		registry.registerLoader("overlay_v+h", loader);
 
-		// PHASE 5 TEST: All CTM methods registered at startup
-		LOGGER.info(
-				"[Continuity] Registered 20+ CTM methods - texture replacements ready for loading");
-
-		// PHASE 7: Schedule resource reload after initial load completes
-		// This ensures CTM textures are loaded into atlases on first world load
 		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
-			LOGGER.info(
-					"[Continuity] PHASE 7: Client started, scheduling resource reload for CTM textures");
-			// Schedule reload on next tick to avoid conflicts
 			client.execute(() -> {
-				LOGGER.info("[Continuity] PHASE 7: Triggering resource reload");
 				client.reloadResources();
 			});
 		});

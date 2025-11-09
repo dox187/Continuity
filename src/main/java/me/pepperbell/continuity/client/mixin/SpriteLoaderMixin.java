@@ -49,24 +49,14 @@ abstract class SpriteLoaderMixin {
 			index = 0)
 	private Supplier<List<Function<SpriteOpener, SpriteContents>>> continuity$modifySupplier(
 			Supplier<List<Function<SpriteOpener, SpriteContents>>> supplier) {
-		// PHASE 5 TEST: SpriteLoaderMixin.modifySupplier() called
-		LOGGER.debug("[Continuity] SpriteLoaderMixin.modifySupplier() - Atlas: {}", id);
-
 		SpriteLoaderLoadContext context = SpriteLoaderLoadContext.THREAD_LOCAL.get();
 
-		// PHASE 7: Fallback to global context if ThreadLocal is not set
 		if (context == null) {
 			context = me.pepperbell.continuity.client.resource.BakedModelManagerReloadExtension
 					.getGlobalContext();
-			if (context != null) {
-				LOGGER.info(
-						"[Continuity] PHASE 7: Using global context for atlas: {} (ThreadLocal was null)",
-						id);
-			}
 		}
 
 		if (context != null) {
-			LOGGER.debug("[Continuity] SpriteLoaderLoadContext found for atlas: {}", id);
 			CompletableFuture<@Nullable Set<Identifier>> extraIdsFuture =
 					context.getExtraIdsFuture(id);
 			SpriteLoaderLoadContext.EmissiveControl emissiveControl =
@@ -75,11 +65,11 @@ abstract class SpriteLoaderMixin {
 				return () -> {
 					AtlasLoaderInitContext initContext = extraIdsFuture::join;
 					AtlasLoaderInitContext.THREAD_LOCAL.set(initContext);
-					AtlasLoaderInitContext.GLOBAL_CONTEXT.set(initContext); // PHASE 7: Set global
+					AtlasLoaderInitContext.GLOBAL_CONTEXT.set(initContext);
 					AtlasLoaderLoadContext.THREAD_LOCAL.set(emissiveControl::setEmissiveIdMap);
 					List<Function<SpriteOpener, SpriteContents>> list = supplier.get();
 					AtlasLoaderInitContext.THREAD_LOCAL.set(null);
-					AtlasLoaderInitContext.GLOBAL_CONTEXT.set(null); // PHASE 7: Clear global
+					AtlasLoaderInitContext.GLOBAL_CONTEXT.set(null);
 					AtlasLoaderLoadContext.THREAD_LOCAL.set(null);
 					return list;
 				};
@@ -87,10 +77,10 @@ abstract class SpriteLoaderMixin {
 			return () -> {
 				AtlasLoaderInitContext initContext = extraIdsFuture::join;
 				AtlasLoaderInitContext.THREAD_LOCAL.set(initContext);
-				AtlasLoaderInitContext.GLOBAL_CONTEXT.set(initContext); // PHASE 7: Set global
+				AtlasLoaderInitContext.GLOBAL_CONTEXT.set(initContext);
 				List<Function<SpriteOpener, SpriteContents>> list = supplier.get();
 				AtlasLoaderInitContext.THREAD_LOCAL.set(null);
-				AtlasLoaderInitContext.GLOBAL_CONTEXT.set(null); // PHASE 7: Clear global
+				AtlasLoaderInitContext.GLOBAL_CONTEXT.set(null);
 				return list;
 			};
 		}
@@ -105,23 +95,14 @@ abstract class SpriteLoaderMixin {
 			index = 0)
 	private Function<List<SpriteContents>, SpriteLoader.StitchResult> continuity$modifyFunction(
 			Function<List<SpriteContents>, SpriteLoader.StitchResult> function) {
-		// PHASE 5 TEST: SpriteLoaderMixin.modifyFunction() called
-		LOGGER.debug("[Continuity] SpriteLoaderMixin.modifyFunction() - Atlas: {}", id);
-
 		SpriteLoaderLoadContext context = SpriteLoaderLoadContext.THREAD_LOCAL.get();
 		if (context != null) {
-			LOGGER.debug(
-					"[Continuity] SpriteLoaderLoadContext found for modifyFunction - Atlas: {}",
-					id);
 			SpriteLoaderLoadContext.EmissiveControl emissiveControl =
 					context.getEmissiveControl(id);
 			if (emissiveControl != null) {
-				LOGGER.debug("[Continuity] EmissiveControl found - will process emissive sprites");
 				return spriteContentsList -> {
 					Map<Identifier, Identifier> emissiveIdMap = emissiveControl.getEmissiveIdMap();
 					if (emissiveIdMap != null) {
-						LOGGER.debug(
-								"[Continuity] Emissive sprite mapping available, attaching to stitch context");
 						SpriteLoaderStitchContext.THREAD_LOCAL.set(new SpriteLoaderStitchContext() {
 							@Override
 							public Map<Identifier, Identifier> getEmissiveIdMap() {
@@ -142,12 +123,8 @@ abstract class SpriteLoaderMixin {
 			}
 		}
 
-		// PHASE 8: Fallback - try EmissiveIdMapStorage if no context
 		Map<Identifier, Identifier> storedEmissiveMap = EmissiveIdMapStorage.get(id);
 		if (storedEmissiveMap != null && !storedEmissiveMap.isEmpty()) {
-			LOGGER.info(
-					"[Continuity] PHASE 8 FALLBACK: Using EmissiveIdMapStorage for atlas: {} ({} mappings)",
-					id, storedEmissiveMap.size());
 			return spriteContentsList -> {
 				SpriteLoaderStitchContext.THREAD_LOCAL.set(new SpriteLoaderStitchContext() {
 					@Override
@@ -156,9 +133,7 @@ abstract class SpriteLoaderMixin {
 					}
 
 					@Override
-					public void markHasEmissives() {
-						// No-op: no emissive control in fallback mode
-					}
+					public void markHasEmissives() {}
 				});
 				SpriteLoader.StitchResult result = function.apply(spriteContentsList);
 				SpriteLoaderStitchContext.THREAD_LOCAL.set(null);
@@ -174,42 +149,30 @@ abstract class SpriteLoaderMixin {
 	private void continuity$onReturnStitch(List<SpriteContents> spriteContentsList,
 			int mipmapLevels, Executor executor,
 			CallbackInfoReturnable<SpriteLoader.StitchResult> cir) {
-		// PHASE 5 TEST: Stitch completed, emissive sprites should be attached
-		LOGGER.debug("[Continuity] SpriteLoaderMixin.onReturnStitch() called");
-
 		Map<Identifier, Sprite> sprites =
 				((StitchResultExtension) (Object) cir.getReturnValue()).continuity$getSprites();
 
 		SpriteLoaderStitchContext context = SpriteLoaderStitchContext.THREAD_LOCAL.get();
 		if (context != null) {
-			LOGGER.debug(
-					"[Continuity] SpriteLoaderStitchContext available - processing emissive sprites");
 			Map<Identifier, Identifier> emissiveIdMap = context.getEmissiveIdMap();
-			LOGGER.debug("[Continuity] Processing {} emissive sprite mappings",
-					emissiveIdMap.size());
+			int emissiveCount = 0;
 
-			emissiveIdMap.forEach((id, emissiveId) -> {
-				Sprite sprite = sprites.get(id);
+			for (Map.Entry<Identifier, Identifier> entry : emissiveIdMap.entrySet()) {
+				Sprite sprite = sprites.get(entry.getKey());
 				if (sprite != null) {
-					Sprite emissiveSprite = sprites.get(emissiveId);
+					Sprite emissiveSprite = sprites.get(entry.getValue());
 					if (emissiveSprite != null) {
 						((SpriteExtension) sprite).continuity$setEmissiveSprite(emissiveSprite);
 						context.markHasEmissives();
-						LOGGER.info("[Continuity] EMISSIVE ASSIGNMENT:");
-						LOGGER.info("  Base sprite: {} @ {}", id, sprite);
-						LOGGER.info("  Emissive sprite: {} @ {}", emissiveId, emissiveSprite);
-						LOGGER.info("  Attachment successful: {}",
-								((SpriteExtension) sprite).continuity$getEmissiveSprite() != null);
-					} else {
-						LOGGER.warn("[Continuity] Emissive sprite not found: {}", emissiveId);
+						emissiveCount++;
 					}
-				} else {
-					LOGGER.warn("[Continuity] Base sprite not found for emissive: {}", id);
 				}
-			});
-		} else {
-			LOGGER.debug(
-					"[Continuity] No SpriteLoaderStitchContext - emissive sprites not processed");
+			}
+
+			if (emissiveCount > 0) {
+				LOGGER.info("[Continuity] Attached {} emissive sprites to atlas: {}", emissiveCount,
+						id);
+			}
 		}
 	}
 }

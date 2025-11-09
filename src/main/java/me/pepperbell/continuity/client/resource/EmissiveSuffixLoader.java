@@ -9,7 +9,6 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import me.pepperbell.continuity.client.ContinuityClient;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
@@ -28,33 +27,23 @@ public final class EmissiveSuffixLoader {
 	public static void load(ResourceManager manager) {
 		emissiveSuffix = null;
 
-		LOGGER.info("[Continuity] EMISSIVE SUFFIX LOADER:");
-		LOGGER.info("  Looking for: {}", LOCATION);
-
 		Optional<Resource> optionalResource = manager.getResource(LOCATION);
 		if (optionalResource.isPresent()) {
 			Resource resource = optionalResource.get();
-			LOGGER.info("  Found emissive.properties file in pack: {}", resource.getPack().getId());
 			try (InputStream inputStream = resource.getInputStream()) {
 				Properties properties = new Properties();
 				properties.load(inputStream);
 				emissiveSuffix = properties.getProperty("suffix.emissive");
 
 				if (emissiveSuffix != null) {
-					LOGGER.info("  Emissive suffix loaded: '{}'", emissiveSuffix);
+					LOGGER.info("[Continuity] Loaded emissive suffix: '{}'", emissiveSuffix);
 				} else {
-					LOGGER.warn("  Property 'suffix.emissive' not found in file!");
+					LOGGER.warn("[Continuity] Property 'suffix.emissive' not found in {}",
+							LOCATION);
 				}
 			} catch (IOException e) {
-				LOGGER.error("Failed to load emissive suffix from file '" + LOCATION + "'", e);
-				ContinuityClient.LOGGER
-						.error("Failed to load emissive suffix from file '" + LOCATION + "'", e);
+				LOGGER.error("[Continuity] Failed to load emissive suffix from '{}'", LOCATION, e);
 			}
-		} else {
-			LOGGER.warn("  File not found! Emissive textures will NOT work!");
-			LOGGER.warn(
-					"  To enable emissive textures, create: assets/minecraft/optifine/emissive.properties");
-			LOGGER.warn("  With content: suffix.emissive=_e");
 		}
 	}
 }

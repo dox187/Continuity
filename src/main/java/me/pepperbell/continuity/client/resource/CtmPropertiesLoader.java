@@ -67,29 +67,18 @@ public class CtmPropertiesLoader {
 		}
 
 		containers.sort(Comparator.reverseOrder());
-		ContinuityClient.LOGGER.info(
-				"[Continuity] CtmPropertiesLoader.loadAll() - complete, total containers: {}",
-				containers.size());
 
 		return new LoadingResult(containers, textureDependencies);
 	}
 
 	private void loadAll(ResourcePack pack, int packPriority) {
-		ContinuityClient.LOGGER.info(
-				"[Continuity] CtmPropertiesLoader.loadAll() - pack: {} (priority: {})",
-				pack.getId(), packPriority);
 		for (String namespace : pack.getNamespaces(ResourceType.CLIENT_RESOURCES)) {
 			pack.findResources(ResourceType.CLIENT_RESOURCES, namespace, "optifine/ctm",
 					(resourceId, inputSupplier) -> {
 						if (resourceId.getPath().endsWith(".properties")) {
-							ContinuityClient.LOGGER
-									.info("[Continuity] Found CTM properties file: {}", resourceId);
 							try (InputStream stream = inputSupplier.get()) {
 								Properties properties = new Properties();
 								properties.load(stream);
-								ContinuityClient.LOGGER.info(
-										"[Continuity] Loaded properties file - {} properties",
-										properties.size());
 								load(properties, resourceId, pack, packPriority);
 							} catch (Exception e) {
 								ContinuityClient.LOGGER.error(
@@ -106,9 +95,6 @@ public class CtmPropertiesLoader {
 			int packPriority) {
 		String method = properties.getProperty("method", "ctm").trim();
 		CtmLoader<?> loader = CtmLoaderRegistry.get().getLoader(method);
-		ContinuityClient.LOGGER.info(
-				"[Continuity] CtmPropertiesLoader.load() - file: {}, method: {}, loaderFound: {}",
-				resourceId, method, loader != null);
 		if (loader != null) {
 			load(loader, properties, resourceId, pack, packPriority, method);
 		} else {
@@ -121,14 +107,9 @@ public class CtmPropertiesLoader {
 			Identifier resourceId, ResourcePack pack, int packPriority, String method) {
 		T ctmProperties = loader.getPropertiesFactory().createProperties(properties, resourceId,
 				pack, packPriority, resourceManager, method);
-		ContinuityClient.LOGGER.info(
-				"[Continuity] CtmPropertiesLoader.load() - created properties: {}",
-				ctmProperties != null);
 		if (ctmProperties != null) {
 			LoadingContainer<T> container = new LoadingContainer<>(loader, ctmProperties);
 			containers.add(container);
-			ContinuityClient.LOGGER.info("[Continuity] Added container - total containers: {}",
-					containers.size());
 			for (SpriteIdentifier spriteId : ctmProperties.getTextureDependencies()) {
 				Set<Identifier> atlasTextureDependencies = textureDependencies
 						.computeIfAbsent(spriteId.getAtlasId(), id -> new ObjectOpenHashSet<>());
