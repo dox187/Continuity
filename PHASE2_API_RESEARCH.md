@@ -305,46 +305,94 @@ These files implement high-level texture processing:
 
 ## Summary Table: What Needs Action
 
-| FILE | Component | Issue | Severity | Blocker |
-|------|-----------|-------|----------|---------|
-| #3 | SpriteLoaderMixin | `.regions()` API | ✅ STABLE | NO |
-| #1 | BakedModelManagerMixin | `SpriteAtlasManager` → `AtlasManager` | ⚠️ REFACTOR | **YES** |
-| #2 | BakedModelManagerBakeContext | `AtlasPreparation` → `AtlasManager.Stitch` | ⚠️ REFACTOR | YES (blocked by #1) |
-| #5 | BakedModelManagerReloadExtension | Old API assumptions | ⚠️ REFACTOR | YES (blocked by #1) |
-| #6 | AtlasLoaderMixin | Method descriptors | ⚠️ UPDATE | NO (can workaround) |
-| #4 | SpriteLoaderLoadContext | Depends on #3 | ⏳ MINIMAL | Blocked by #3 (but #3 is stable) |
+| FILE | Component | Issue | Action | Blocker |
+|------|-----------|-------|--------|---------|
+| #3 | SpriteLoaderMixin | `.regions()` API | ✅ NO CHANGES | NO |
+| #1 | BakedModelManagerMixin | Injection points changed | ⚠️ REWRITE | **YES** |
+| #2 | BakedModelManagerBakeContext | Interface signature changed | ⚠️ REWRITE | YES (#1) |
+| #5 | BakedModelManagerReloadExtension | Old API wrapper | ⚠️ REWRITE | YES (#1) |
+| #6 | AtlasLoaderMixin | Descriptor update | ⚠️ UPDATE | NO |
+| #4 | SpriteLoaderLoadContext | Context wrapper (stable) | ⏳ MINIMAL | NO |
+
+**NEW UNDERSTANDING:** 
+- ❌ Don't look for `SpriteAtlasManager.reload()` - it doesn't exist
+- ✅ DO look for `SpriteAtlasTexture.upload()` - new injection point
+- ✅ Reuse `SpriteLoader.StitchResult` pattern - it's stable
 
 ---
 
 ## Remaining Research Tasks (MUST DO BEFORE IMPLEMENTATION)
 
+### ✅ DISCOVERED: SpriteAtlasTexture.upload() Method
+
+**New API (1.21.10) - SpriteAtlasTexture:**
+```java
+CLASS net/minecraft/class_1059 SpriteAtlasTexture
+    METHOD method_45848 upload (Lnet/minecraft/class_7766$class_7767;)V
+        ARG 1 stitchResult
+```
+
+**This is the new injection point!** The `upload()` method receives `SpriteLoader.StitchResult` which contains the sprite data.
+
+**Key Discovery:** Instead of modifying `AtlasPreparation` objects, we now:
+1. Intercept `SpriteAtlasTexture.upload()` call
+2. Modify sprites inside the `SpriteLoader.StitchResult` 
+3. This happens for each atlas during reload
+
 ### Critical Questions to Answer:
 
-1. **WHERE IS AtlasManager.Stitch CREATED?**
-   - Find the call site that creates `new AtlasManager.Stitch(...)`
-   - Determine if it's in BakedModelManager or elsewhere
-   - Figure out how to inject before/after creation
+1. **HOOK INTO SpriteAtlasTexture.upload()?**
+   - YES! This is where sprite data is uploaded per atlas
+   - We can modify sprites here via the StitchResult
+   - Replace the `SpriteLoader.StitchResult` processing
 
-2. **WHAT CONTAINS THE SPRITE DATA IN bake()?**
-   - `bake()` now receives `SpriteLoader.StitchResult` as first param
-   - Does this contain reference to `AtlasManager`?
-   - Does it contain the sprites themselves?
+2. **CONNECT TO BakedModelManager.reload()?**
+   - `reload()` triggers SpriteAtlasTexture loading
+   - At some point `SpriteAtlasTexture.upload()` is called
+   - That's where we intercept
 
-3. **HOW TO ACCESS SPRITE MODIFICATIONS?**
-   - Old: Modify `Map<Identifier, AtlasPreparation>` directly
-   - New: How do we modify sprites if they're in `AtlasManager.Stitch.preparations`?
+3. **ACCESS EMISSIVE SPRITES?**
+   - Old: Accessed via `AtlasPreparation.getSprite()`
+   - New: Access via `SpriteLoader.StitchResult.regions()` / `sprites()`
+   - Same pattern actually!
 
-4. **WHEN ARE SPRITES POPULATED?**
-   - In old flow: Clear timing with `AtlasPreparation.upload()`
-   - In new flow: Where/when are sprites added to preparations map?
+4. **MAINTAIN THREAD-LOCAL CONTEXT?**
+   - Still needed for passing data between mixins
+   - Pattern remains the same
 
-### Research Priority
-1. Find `AtlasManager.Stitch` creation point
-2. Trace `SpriteLoader.StitchResult` → `AtlasManager` linkage
-3. Map old injection points to new API
-4. Identify sprite modification opportunities
+### New Proposed Mixin Strategy
 
-**Status:** These questions must be answered by examining Fabric 1.21.10 source code in detail.
+**Instead of:**
+```java
+@Mixin(BakedModelManager)
+Inject into bake(Map<Identifier, AtlasPreparation> preparations)
+```
+
+**Do This:**
+```java
+@Mixin(SpriteAtlasTexture)
+Inject into upload(SpriteLoader.StitchResult stitchResult)
+  └── Access sprites via stitchResult.regions() / sprites()
+  └── Modify/attach emissive references as needed
+```
+
+This is actually a **cleaner** injection point because:
+- We're directly at atlas upload time
+- StitchResult already has all sprites organized
+- No need to access through nested maps
+
+### Research Status Update
+
+**Major Findings:**
+- ✅ `SpriteAtlasTexture.upload()` is new injection point
+- ✅ `SpriteLoader.StitchResult.regions()` is sprite accessor (stable from 1.21.6)
+- ✅ No need for `AtlasPreparation` equivalence (direct upload pattern is better)
+- ✅ Thread-local context pattern unchanged
+
+**Remaining Research:**
+- [ ] Verify `SpriteLoader.StitchResult` structure in 1.21.10
+- [ ] Find if `SpriteAtlasTexture.upload()` is called per-atlas
+- [ ] Check BakedModelManager → SpriteAtlasTexture loading chain
 
 ---
 
