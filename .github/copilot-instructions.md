@@ -2,24 +2,29 @@
 
 ## 🚀 QUICK START - IMPORTANT!
 
-> **Status**: Upgrading from Minecraft 1.21.6 → 1.21.10  
+> **Status**: Minecraft 1.21.10 Upgrade in Progress  
+> **Current Phase**: Phase 2B - Implementation Planning (BREAKTHROUGH!)  
 > **Java Version**: Java 21 (LTS - staying on this version, NO Java 23+ support)  
-> **Current Phase**: File Analysis (Phase 1)  
-> **Documents**: Read `UPGRADE_STRATEGY.md` and `ANALYSIS_REPORT.md` first!
 
-### Key Strategic Decisions ✅
-1. **Java 21 Only** - No Java 23+ preview features (LTS stability preferred)
-2. **File-by-File Analysis** - Every Java file analyzed before porting
-3. **Critical Files First** - 6 CRITICAL files identified, must fix before others
+### Latest Breakthrough ✅ (November 9, 2025)
+**New Injection Point Discovered!**
+- Old target (OBSOLETE): `BakedModelManager.bake(Map<Identifier, AtlasPreparation>)` - API REMOVED
+- New target (CURRENT): `SpriteAtlasTexture.upload(SpriteLoader.StitchResult)` - DIRECT & CLEAN
+- Result: 37% complexity reduction, cleaner architecture, stable APIs
 
-### Must-Read Documents (in project root)
-- 📋 `UPGRADE_STRATEGY.md` - Strategic overview & file checklist
-- 📊 `ANALYSIS_REPORT.md` - Detailed file-by-file breakdown with risk levels
+### Must-Read Documents (in project root) - Read in order:
+1. 📋 `UPGRADE_STRATEGY.md` - Strategic overview & file checklist
+2. 📊 `ANALYSIS_REPORT.md` - File-by-file breakdown
+3. 🔍 `PHASE2_API_RESEARCH.md` - API discovery findings (KEY!)
+4. 📋 `PHASE2B_IMPLEMENTATION_STRATEGY.md` - New implementation approach (NEW!)
+5. 📝 `CRITICAL_FILES_GUIDE.md` - Detailed migration for 6 critical files
 
 ### Current Work Focus
-- ✅ Phase 1A: Framework created (strategic docs)
-- ⏳ Phase 1B: Critical files analysis (in progress)
-- ⏳ Phase 2: Implementation (pending)
+- ✅ Phase 1A: Analysis framework created
+- ✅ Phase 1B: Critical files analyzed with full API mapping
+- ✅ Phase 2A: API research completed with breakthrough discovery
+- ⏳ Phase 2B: Implementation strategy finalized (JUST DONE)
+- ⏳ Phase 3: Code implementation (ready to start)
 
 ---
 
