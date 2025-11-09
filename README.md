@@ -14,3 +14,35 @@ Continuity is developed as a Fabric mod and is recommended to be used with Fabri
 [Modrinth Page](https://modrinth.com/mod/continuity) \
 [Wiki](https://github.com/PepperCode1/Continuity/wiki) \
 [Discord](https://discord.gg/7rnTYXu)
+
+---
+
+## 🔧 Development & Maintenance
+
+### Current Upgrade: Minecraft 1.21.6 → 1.21.10
+
+This project is currently undergoing a version upgrade. If you're working on this code, **please read these documents first**:
+
+1. **[UPGRADE_STRATEGY.md](UPGRADE_STRATEGY.md)** - Strategic decisions and overall plan
+2. **[ANALYSIS_REPORT.md](ANALYSIS_REPORT.md)** - File-by-file analysis with risk levels
+3. **[CRITICAL_FILES_GUIDE.md](CRITICAL_FILES_GUIDE.md)** - Detailed guide for 6 critical files
+4. **[.github/copilot-instructions.md](.github/copilot-instructions.md)** - Architecture overview
+
+#### Key Points
+- ✅ **Java 21 is stable target** - No Java 23+ features
+- ✅ **Java 21 modernization applied** - ProcessingDataKeyImpl converted to record
+- 🔄 **Phase 1: Analysis complete** - All 93 files analyzed
+- ⏳ **Phase 2: Implementation pending** - Critical files need API research
+
+#### Build Commands
+```powershell
+# Build for Minecraft 1.21.6 (current)
+.\gradlew clean build
+
+# Current configuration
+# - Minecraft: 1.21.6
+# - Fabric API: 0.128.2
+# - Java: 21
+```
+
+
