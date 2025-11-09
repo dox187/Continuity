@@ -62,8 +62,7 @@ public final class RenderUtil {
 
 		@Override
 		public void reload(ResourceManager manager) {
-			blockAtlasSpriteFinder = me.pepperbell.continuity.client.mixin.SpriteAtlasTextureMixin
-					.continuity$getBlockAtlas().spriteFinder();
+			blockAtlasSpriteFinder = AtlasStorage.getBlockAtlas().spriteFinder();
 		}
 
 		@Override
