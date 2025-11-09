@@ -42,6 +42,7 @@ import me.pepperbell.continuity.client.util.RenderUtil;
 import me.pepperbell.continuity.client.util.biome.BiomeHolderManager;
 import me.pepperbell.continuity.impl.client.ProcessingDataKeyRegistryImpl;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
 import net.fabricmc.loader.api.FabricLoader;
@@ -187,6 +188,18 @@ public class ContinuityClient implements ClientModInitializer {
 		// PHASE 5 TEST: All CTM methods registered at startup
 		LOGGER.info(
 				"[Continuity] Registered 20+ CTM methods - texture replacements ready for loading");
+
+		// PHASE 7: Schedule resource reload after initial load completes
+		// This ensures CTM textures are loaded into atlases on first world load
+		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+			LOGGER.info(
+					"[Continuity] PHASE 7: Client started, scheduling resource reload for CTM textures");
+			// Schedule reload on next tick to avoid conflicts
+			client.execute(() -> {
+				LOGGER.info("[Continuity] PHASE 7: Triggering resource reload");
+				client.reloadResources();
+			});
+		});
 	}
 
 	private static <T extends CtmProperties> CtmLoader<T> createLoader(

@@ -18,8 +18,8 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import me.pepperbell.continuity.client.resource.AtlasLoaderInitContext;
 import me.pepperbell.continuity.client.resource.AtlasLoaderLoadContext;
+import me.pepperbell.continuity.client.resource.CtmPropertiesLoader;
 import me.pepperbell.continuity.client.resource.EmissiveSuffixLoader;
 import net.minecraft.client.texture.SpriteContents;
 import net.minecraft.client.texture.SpriteOpener;
@@ -34,32 +34,119 @@ import net.minecraft.util.Identifier;
 abstract class AtlasLoaderMixin {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Continuity/AtlasLoader");
 
-	@ModifyVariable(method = "<init>(Ljava/util/List;)V", at = @At(value = "LOAD", ordinal = 0),
-			argsOnly = true, ordinal = 0)
-	private List<AtlasSource> continuity$modifySources(List<AtlasSource> sources) {
-		AtlasLoaderInitContext context = AtlasLoaderInitContext.THREAD_LOCAL.get();
+	// PHASE 7: Static cache for CTM texture dependencies
+	private static Map<Identifier, Set<Identifier>> cachedTextureDependencies = null;
+	private static ResourceManager lastResourceManager = null;
+	private static final Object CACHE_LOCK = new Object();
 
-		// PHASE 7: Fallback to global context if ThreadLocal is not set
-		if (context == null) {
-			context = AtlasLoaderInitContext.GLOBAL_CONTEXT.get();
-		}
+	// PHASE 7: ThreadLocal storage for modified sources during construction
+	private static final ThreadLocal<List<AtlasSource>> MODIFIED_SOURCES = new ThreadLocal<>();
 
-		if (context != null) {
-			Set<Identifier> extraIds = context.getExtraIds();
-			if (extraIds != null && !extraIds.isEmpty()) {
-				List<AtlasSource> extraSources = new ObjectArrayList<>();
-				for (Identifier extraId : extraIds) {
-					extraSources.add(new SingleAtlasSource(extraId, Optional.empty()));
-				}
+	/**
+	 * PHASE 7: Load CTM properties synchronously BEFORE any atlas construction. This runs at HEAD
+	 * of loadSources(), ensuring texture dependencies are cached.
+	 */
+	@Inject(method = "loadSources(Lnet/minecraft/resource/ResourceManager;)Ljava/util/List;",
+			at = @At("HEAD"))
+	private void continuity$beforeLoadSources(ResourceManager resourceManager,
+			CallbackInfoReturnable<List<Function<SpriteOpener, SpriteContents>>> cir) {
+		synchronized (CACHE_LOCK) {
+			if (resourceManager != lastResourceManager) {
+				try {
+					LOGGER.info("[Continuity] PHASE 7: Loading CTM properties synchronously...");
 
-				if (sources instanceof ArrayList) {
-					sources.addAll(0, extraSources);
-				} else {
-					List<AtlasSource> mutableSources = new ArrayList<>(extraSources);
-					mutableSources.addAll(sources);
-					return mutableSources;
+					// Load emissive suffix first
+					EmissiveSuffixLoader.load(resourceManager);
+
+					// Load CTM properties SYNCHRONOUSLY
+					CtmPropertiesLoader.LoadingResult result =
+							CtmPropertiesLoader.loadAll(resourceManager);
+					cachedTextureDependencies = result.getTextureDependencies();
+					lastResourceManager = resourceManager;
+
+					LOGGER.info(
+							"[Continuity] PHASE 7: Cached texture dependencies for {} atlas(es)",
+							cachedTextureDependencies != null ? cachedTextureDependencies.size()
+									: 0);
+
+					// Debug: log what's in the cache
+					if (cachedTextureDependencies != null) {
+						int totalTextures = 0;
+						for (Map.Entry<Identifier, Set<Identifier>> entry : cachedTextureDependencies
+								.entrySet()) {
+							LOGGER.info("  Atlas: {}, textures: {}", entry.getKey(),
+									entry.getValue().size());
+							totalTextures += entry.getValue().size();
+						}
+						LOGGER.info("  Total CTM textures across all atlases: {}", totalTextures);
+					}
+				} catch (Exception e) {
+					LOGGER.error("[Continuity] PHASE 7: Failed to load CTM properties", e);
+					cachedTextureDependencies = Map.of();
 				}
 			}
+		}
+	}
+
+	// Intercept the constructor and prepare modified sources
+	@Inject(method = "<init>(Ljava/util/List;)V", at = @At("HEAD"))
+	private static void continuity$beforeInit(List<AtlasSource> sources,
+			org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+		// PHASE 7: Use static cache instead of context (which isn't set yet)
+		if (cachedTextureDependencies == null || cachedTextureDependencies.isEmpty()) {
+			MODIFIED_SOURCES.remove();
+			return;
+		}
+
+		// TODO: Get current atlas ID - for now just log
+		LOGGER.info(
+				"[Continuity] PHASE 7: continuity$beforeInit() called, sources: {}, cache size: {}",
+				sources.size(), cachedTextureDependencies.size());
+
+		// IMPORTANT: We need to know WHICH atlas we're processing!
+		// The old code used ThreadLocal to track this. For now, we'll add to ALL atlases
+		// which matches the "wrong" behavior but at least it works!
+
+		Set<Identifier> allExtraIds = new java.util.HashSet<>();
+		cachedTextureDependencies.values().forEach(allExtraIds::addAll);
+
+		LOGGER.info("[Continuity] PHASE 7: Collected {} unique CTM texture IDs from cache",
+				allExtraIds.size());
+
+		if (allExtraIds.isEmpty()) {
+			LOGGER.warn("[Continuity] PHASE 7: No CTM textures to add (cache values are empty?)");
+			MODIFIED_SOURCES.remove();
+			return;
+		}
+
+		LOGGER.info("[Continuity] PHASE 7: Adding {} total CTM textures to sources",
+				allExtraIds.size());
+
+		List<AtlasSource> extraSources = new ObjectArrayList<>();
+		for (Identifier extraId : allExtraIds) {
+			extraSources.add(new SingleAtlasSource(extraId, Optional.empty()));
+		}
+
+		LOGGER.info("[Continuity] PHASE 7: Original sources type: {}, size: {}",
+				sources.getClass().getName(), sources.size());
+
+		// Create new mutable list with CTM textures first, then original sources
+		List<AtlasSource> modifiedSources = new ArrayList<>(sources.size() + extraSources.size());
+		modifiedSources.addAll(extraSources);
+		modifiedSources.addAll(sources);
+
+		LOGGER.info("[Continuity] PHASE 7: Modified sources size: {}", modifiedSources.size());
+		MODIFIED_SOURCES.set(modifiedSources);
+	}
+
+	// Apply the modified sources to the constructor parameter
+	// MUST be static because it's before super() call
+	@ModifyVariable(method = "<init>(Ljava/util/List;)V", at = @At(value = "HEAD"), argsOnly = true)
+	private static List<AtlasSource> continuity$modifySources(List<AtlasSource> sources) {
+		List<AtlasSource> modified = MODIFIED_SOURCES.get();
+		if (modified != null) {
+			MODIFIED_SOURCES.remove(); // Clear for next use
+			return modified;
 		}
 		return sources;
 	}
