@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import me.pepperbell.continuity.client.mixinterface.StitchResultExtension;
 import me.pepperbell.continuity.client.resource.BakedModelManagerReloadExtension;
 import me.pepperbell.continuity.client.resource.CtmInitializationCoordinator;
+import me.pepperbell.continuity.client.resource.EmissiveIdMapStorage;
 import me.pepperbell.continuity.client.resource.ModelWrappingHandler;
 import me.pepperbell.continuity.client.resource.SpriteLoaderStitchContext;
 import me.pepperbell.continuity.client.util.AtlasStorage;
@@ -62,6 +63,17 @@ public abstract class SpriteAtlasTextureMixin {
         // Check if we have emissive textures for this atlas
         SpriteLoaderStitchContext context = SpriteLoaderStitchContext.THREAD_LOCAL.get();
         boolean hasEmissives = (context != null);
+
+        // PHASE 8: Fallback - check EmissiveIdMapStorage if no context
+        if (!hasEmissives) {
+            java.util.Map<Identifier, Identifier> storedMap = EmissiveIdMapStorage.get(id);
+            hasEmissives = (storedMap != null && !storedMap.isEmpty());
+            if (hasEmissives) {
+                LOGGER.info(
+                        "[Continuity] PHASE 8: Emissive textures detected via EmissiveIdMapStorage for atlas: {} ({} mappings)",
+                        id, storedMap.size());
+            }
+        }
 
         if (hasEmissives) {
             // PHASE 5 TEST: Emissive sprites attached to models

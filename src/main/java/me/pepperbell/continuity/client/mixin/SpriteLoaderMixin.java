@@ -24,6 +24,7 @@ import me.pepperbell.continuity.client.mixinterface.SpriteExtension;
 import me.pepperbell.continuity.client.mixinterface.StitchResultExtension;
 import me.pepperbell.continuity.client.resource.AtlasLoaderInitContext;
 import me.pepperbell.continuity.client.resource.AtlasLoaderLoadContext;
+import me.pepperbell.continuity.client.resource.EmissiveIdMapStorage;
 import me.pepperbell.continuity.client.resource.SpriteLoaderLoadContext;
 import me.pepperbell.continuity.client.resource.SpriteLoaderStitchContext;
 import net.minecraft.client.texture.Sprite;
@@ -140,6 +141,31 @@ abstract class SpriteLoaderMixin {
 				};
 			}
 		}
+
+		// PHASE 8: Fallback - try EmissiveIdMapStorage if no context
+		Map<Identifier, Identifier> storedEmissiveMap = EmissiveIdMapStorage.get(id);
+		if (storedEmissiveMap != null && !storedEmissiveMap.isEmpty()) {
+			LOGGER.info(
+					"[Continuity] PHASE 8 FALLBACK: Using EmissiveIdMapStorage for atlas: {} ({} mappings)",
+					id, storedEmissiveMap.size());
+			return spriteContentsList -> {
+				SpriteLoaderStitchContext.THREAD_LOCAL.set(new SpriteLoaderStitchContext() {
+					@Override
+					public Map<Identifier, Identifier> getEmissiveIdMap() {
+						return storedEmissiveMap;
+					}
+
+					@Override
+					public void markHasEmissives() {
+						// No-op: no emissive control in fallback mode
+					}
+				});
+				SpriteLoader.StitchResult result = function.apply(spriteContentsList);
+				SpriteLoaderStitchContext.THREAD_LOCAL.set(null);
+				return result;
+			};
+		}
+
 		return function;
 	}
 
@@ -169,11 +195,16 @@ abstract class SpriteLoaderMixin {
 					if (emissiveSprite != null) {
 						((SpriteExtension) sprite).continuity$setEmissiveSprite(emissiveSprite);
 						context.markHasEmissives();
-						LOGGER.debug("[Continuity] Attached emissive sprite: {} -> {}", id,
-								emissiveId);
+						LOGGER.info("[Continuity] EMISSIVE ASSIGNMENT:");
+						LOGGER.info("  Base sprite: {} @ {}", id, sprite);
+						LOGGER.info("  Emissive sprite: {} @ {}", emissiveId, emissiveSprite);
+						LOGGER.info("  Attachment successful: {}",
+								((SpriteExtension) sprite).continuity$getEmissiveSprite() != null);
 					} else {
-						LOGGER.debug("[Continuity] Emissive sprite not found: {}", emissiveId);
+						LOGGER.warn("[Continuity] Emissive sprite not found: {}", emissiveId);
 					}
+				} else {
+					LOGGER.warn("[Continuity] Base sprite not found for emissive: {}", id);
 				}
 			});
 		} else {

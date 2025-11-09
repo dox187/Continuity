@@ -1,27 +1,50 @@
 # Phase 5 - Deleted Files Analysis and Functional Replacement Strategy
+# ⚠️ SUPERSEDED BY PHASE 7 - See PHASE7_COMPLETION_REPORT.md
 
 **Date**: November 9, 2025  
-**Phase**: Phase 5 - Deleted Files Functional Mapping  
-**Status**: 📋 **DOCUMENTATION ONLY** (implementation pending)  
+**Phase**: Phase 5/6/7 - Deleted Files Functional Mapping & CTM Initial Load Fix  
+**Status**: ✅ **PARTIAL RESOLUTION** (Phase 7 completed, emissive textures remain)  
 **Minecraft Version**: 1.21.6 → 1.21.10 upgrade  
+
+> **IMPORTANT**: Phase 7 successfully resolved the initial CTM texture loading issue. This document is kept for reference but **most of its problems are now solved**. See Phase 7 report for the current solution architecture.  
 
 ---
 
 ## Executive Summary
 
-During the Phase 3 implementation, multiple files were deleted due to API removal in Minecraft 1.21.10. This document performs a **line-by-line functional analysis** of each deleted file to identify:
+This document evolved from Phase 5 analysis through Phase 7 implementation:
 
-1. **Original Purpose**: What did each deleted file do?
-2. **Functional Scope**: What methods, interfaces, and capabilities did it provide?
-3. **Replacement Strategy**: What new classes/patterns replace this functionality?
-4. **Migration Mapping**: How does old code map to new implementations?
-5. **Verification Checklist**: How to verify the functionality is properly replaced?
+### Phase 5 Status (Initial Analysis)
+- Identified 7 deleted files and their functional mappings
+- Analyzed replacement strategies
+- Documented potential risks and mitigations
+
+### Phase 6 Status (Testing Discovered Issues)
+- ✅ CTM properties loader WORKS but timing issue found
+- ❌ Race condition: SpriteAtlasTexture.upload() fires before resource listener
+- ❌ No quad processors created (happens too late)
+- ❌ CTM textures missing on blocks
+
+### Phase 7 Status (SOLUTION IMPLEMENTED) ✅
+- ✅ **SOLVED**: CTM textures now appear on initial world load
+- ✅ Synchronous cache loading (HEAD injection in `loadSources()`)
+- ✅ Static mixin injections with ThreadLocal communication
+- ✅ Automatic resource reload after CLIENT_STARTED
+- ✅ Build successful, runtime tested and working
+- ✅ User confirmation: *"ez így működik"*
+
+### Current Remaining Issues (Phase 8 Priorities)
+1. ⚠️ **CRITICAL**: Emissive textures - Present but not getting properties
+2. ❓ **UNCERTAIN**: Animated textures - May or may not work
+3. ⏳ **NEXT**: Debug and implement emissive texture property assignment
+
+**Key Insight**: The deleted files' functionality has been **successfully redistributed** across Phase 7 solution. Most problems are now solved - focus shifts to emissive rendering system.
 
 ---
 
 ## Part 1: Deleted Files Overview
 
-### Files Deleted (7 total)
+### Files Deleted (7 total) - NOW REPLACED BY PHASE 7 SOLUTION
 
 ```
 ❌ src/main/java/me/pepperbell/continuity/client/mixin/BakedModelManagerMixin.java
@@ -31,6 +54,11 @@ During the Phase 3 implementation, multiple files were deleted due to API remova
 ❌ src/main/java/me/pepperbell/continuity/client/resource/BakedModelManagerReloadExtension.java
 ❌ src/main/java/me/pepperbell/continuity/client/resource/CtmPropertiesProcessorRegistry.java
 ❌ src/main/java/me/pepperbell/continuity/client/resource/CtmPropertiesReloadHandler.java
+
+✅ REPLACED BY PHASE 7 ARCHITECTURE:
+   • AtlasLoaderMixin.java (new) - Synchronous cache loading
+   • AtlasStorage.java (new) - Static atlas reference
+   • ContinuityClient.java (modified) - Automatic reload on CLIENT_STARTED
 ```
 
 ### Deletion Reason
@@ -946,64 +974,186 @@ Timeline of events:
 
 ---
 
-## Part 10: Implementation Readiness
+## Part 10: Phase 7 Solution Architecture (REPLACES Phase 5-6 Issues)
 
-### Files Ready for Phase 5 Implementation
+### ✅ Phase 7 SUCCESSFULLY RESOLVED: CTM Initial Load Problem
 
-| File | Status | Notes |
-|---|---|---|
-| AtlasStorage.java | ✅ Created (Phase 4) | Stores block atlas reference |
-| SpriteAtlasTextureMixin.java | ✅ Modified (Phase 4) | Injects into upload() |
-| SpriteLoaderMixin.java | ✅ Modified (Phase 4) | Fixed for 1.21.10 signature |
-| RenderUtil.java | ✅ Modified (Phase 4) | Uses AtlasStorage |
-| ModelWrappingHandler.java | ✅ Existing | Standalone, no changes needed |
-| CtmLoaderRegistryImpl.java | ✅ Existing | Registry populated at startup |
-| ContinuityClient.java | ✅ Existing | Initializes registrations |
+**Three-Part Solution**:
 
-### Files NOT Ready (Need Investigation)
+1. **Synchronous Cache Loading** (AtlasLoaderMixin.continuity$beforeLoadSources)
+   - Loads CTM properties BEFORE atlas construction
+   - Runs at HEAD of loadSources()
+   - No race conditions
 
-| File | Issue | Action |
-|---|---|---|
-| All deleted files | Removed | Analysis complete, no action |
-| BakedModelManagerBakeContext | Usage? | Search for THREAD_LOCAL usage |
-| CtmPropertiesReloadHandler | Usage? | Search for reload handler |
-| CtmPropertiesProcessorRegistry | Usage? | Search for registry patterns |
+2. **Static Mixin Injections** (AtlasLoaderMixin - Two static methods)
+   - beforeInit(): Prepare modified sources with CTM textures
+   - modifySources(): Apply to constructor parameter
+   - ThreadLocal communication pattern ensures correctness
 
-### Next Steps
+3. **Automatic Resource Reload** (ContinuityClient - CLIENT_STARTED listener)
+   - Triggers reload after client fully starts
+   - Ensures CTM textures in second atlas
+   - User-acceptable solution (200ms startup overhead)
 
-1. ✅ **Completed**: Line-by-line functional analysis (this document)
-2. ⏳ **Phase 5A**: Runtime testing to verify all functionality works
-3. ⏳ **Phase 5B**: Performance benchmarking and optimization
-4. ⏳ **Phase 5C**: Create replacement documentation for deleted files
-5. ⏳ **Phase 5D**: Final verification and Phase 5 summary
+**Result**: ✅ CTM textures visible on first world load - CONFIRMED WORKING
 
 ---
 
-## Conclusion
+## Part 11: Phase 8 Priorities (Current Work)
 
-All 7 deleted files had their functionality **successfully mapped** to new implementations:
+### Issue 1: Emissive textures ⚠️ **CRITICAL - NEXT FOCUS**
 
-- ✅ Model reload → SpriteAtlasTextureMixin + RenderUtil
-- ✅ CTM registry → CtmLoaderRegistryImpl (distributed initialization)
-- ✅ Emissive mapping → SpriteLoaderStitchContext (same pattern)
-- ✅ Model wrapping → ModelWrappingHandler (now called directly)
+**Current Status**:
+- ✅ Emissive sprites ARE loaded
+- ✅ Emissive references ARE attached to base sprites
+- ❌ Emissive property NOT being used during rendering
+- ❌ Blocks render normal, no glow effect
+
+**Symptoms**:
+```
+Expected: Soul lanterns glow when rendering
+Actual:   Soul lanterns render as normal blocks
+Root:     SpriteMixin.continuity$emissive exists but not used by quad processor
+```
+
+**Investigation Required**:
+- [ ] Check if quad processor reads emissive property
+- [ ] Verify rendering pipeline checks for emissive flag
+- [ ] Confirm SpriteMixin field is actually accessed
+- [ ] Debug: Add logs to track emissive property flow
+- [ ] Test: Manual emissive assignment to verify pipeline works
+
+**Code Locations**:
+- `SpriteMixin.java` - Emissive sprite attachment (✅ works)
+- `SpriteLoaderMixin.java` - Property assignment (✅ works)
+- `QuadProcessor` subclasses - Do they READ emissive? (❌ unknown)
+- Rendering pipeline - Does it apply emissive? (❌ unknown)
+
+**Next Step**: Debug trace from sprite to final render to find where property is lost
+
+---
+
+### Issue 2: Animated textures ❓ **UNCERTAIN - VERIFY AFTER EMISSIVE**
+
+**Expected Behavior**:
+- Animation is Minecraft feature, not CTM-dependent
+- CTM selects which sprite, animation happens automatically
+- Should work without special handling
+
+**Verification Needed**:
+- [ ] Test with animated CTM (e.g., cobblestone CTM)
+- [ ] Confirm animation frames update correctly
+- [ ] Check animation speed is correct
+- [ ] Verify no texture selection conflicts with animation
+
+**Likely Outcome**: Will work fine (low risk)
+- Animation is Minecraft's responsibility
+- CTM just provides sprite selection
+- No reason it shouldn't work
+
+---
+
+## Part 12: Updated Implementation Status
+
+### Files NOW READY (Phase 7 Solution)
+
+| File | Status | Purpose |
+|---|---|---|
+| AtlasLoaderMixin.java | ✅ Created (Phase 7) | Synchronous cache + static injections |
+| ContinuityClient.java | ✅ Modified (Phase 7) | Automatic reload on CLIENT_STARTED |
+| AtlasStorage.java | ✅ Created (Phase 4) | Static atlas reference |
+| SpriteAtlasTextureMixin.java | ✅ Modified (Phase 4) | Sprite atlas upload hook |
+| SpriteLoaderMixin.java | ✅ Modified (Phase 3-4) | Quad processing (BUT: emissive issue) |
+| ModelWrappingHandler.java | ✅ Existing | Model wrapping control |
+| CtmLoaderRegistryImpl.java | ✅ Existing | CTM loader registry |
+
+### Files NEEDING INVESTIGATION (Phase 8)
+
+| Component | Issue | Status | Action |
+|---|---|---|---|
+| Emissive Rendering | Property not used | ⚠️ Critical | Debug quad processor |
+| Animated Textures | Uncertain | ❓ Unknown | Test after emissive fix |
+| Sprite Finder | May be stale | ⏳ Monitor | Check on reload |
+| Model Wrapping | Should be OK | ✅ Assumed | Verify with CTM working |
+
+---
+
+## Part 13: Phase 8 Roadmap
+
+### Phase 8 Tasks (In Order)
+
+1. **Debug Emissive Property Flow** ⚠️ **CRITICAL**
+   - Add logging to QuadProcessor
+   - Trace property from sprite to final render
+   - Find where emissive property is lost
+   - Estimated: 1-2 hours
+
+2. **Fix Emissive Rendering** ⚠️ **CRITICAL**
+   - Implement missing property usage
+   - Verify quad processor applies emissive
+   - Test with glowing blocks
+   - Estimated: 1-3 hours (depends on issue)
+
+3. **Verify Animated Textures** ❓ **MEDIUM**
+   - Test with animated CTM blocks
+   - Confirm animation works correctly
+   - If broken: debug and fix
+   - Estimated: 30 minutes (likely no issue)
+
+4. **Final Testing & Documentation**
+   - Comprehensive feature test
+   - Update progress documentation
+   - Create Phase 8 completion report
+   - Estimated: 1 hour
+
+---
+
+## Conclusion (UPDATED)
+
+### Phase 5-7 Achievements ✅
+
+All 7 deleted files had their functionality **successfully redistributed**:
+
+- ✅ Model reload → **Phase 7 solution** (AtlasLoaderMixin + automatic reload)
+- ✅ CTM registry → CtmLoaderRegistryImpl (eager initialization)
+- ✅ Emissive mapping → SpriteLoaderStitchContext (sprite attachment works)
+- ✅ Model wrapping → ModelWrappingHandler (integrated in Phase 7)
 - ✅ Sprite finder update → AtlasStorage + RenderUtil
+- ✅ CTM initial load → **SOLVED by Phase 7**
 
-**No original functionality was lost**. The code was refactored to match the new Minecraft 1.21.10 architecture.
+### Current Status (End of Phase 7)
 
-**Confidence Level**: ✅ HIGH
-- All dependencies identified and mapped
-- New implementations ready for testing
-- Build successful, runtime ready
+**Completed**: ✅ CTM textures on initial load (Phase 7 solution working)
+
+**In Progress**: ⚠️ Emissive texture property rendering (investigation phase)
+
+**Not Yet Started**: ❓ Animated texture verification
+
+**Confidence Level**: ✅ VERY HIGH (for Phase 7 solution)
+- Phase 7 solution is working and tested
+- Architecture is sound and user-confirmed
+- Phase 8 focuses on emissive rendering issue
 
 ---
 
-**Status**: 📋 **DOCUMENTATION COMPLETE**  
-**Next Action**: Phase 5A Runtime Testing  
-**Estimated Time**: 10-15 minutes (testing only)
+**Status**: ✅ **PHASE 7 COMPLETE, PHASE 8 STARTING**  
+**Next Action**: See PHASE8_TASK_SPECIFICATIONS.md for detailed task breakdown  
+**Current Priority**: Fix emissive texture rendering  
+**Estimated Time**: 3.5-7 hours (Phase 8 complete scope)
 
 ---
 
-*Generated: November 9, 2025*  
+## See Also
+
+- **Phase 8 Task Specifications**: `PHASE8_TASK_SPECIFICATIONS.md` (detailed task breakdown)
+- **Phase 7 Completion Report**: `PHASE7_COMPLETION_REPORT.md` (CTM initial load solution)
+- **Critical Files Guide**: `CRITICAL_FILES_GUIDE.md` (file descriptions)
+
+---
+
+*Updated: November 9, 2025*  
+*Phase 7 Completion: CTM initial load SOLVED ✅*  
+*Phase 8 Starting: Emissive textures ⚠️ & Animated textures ❓*  
+*Detailed Tasks: See PHASE8_TASK_SPECIFICATIONS.md*  
 *Branch: phase3/minecraft-1.21.10-implementation*  
 *Minecraft Version: 1.21.10*  

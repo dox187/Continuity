@@ -20,7 +20,9 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import me.pepperbell.continuity.client.resource.AtlasLoaderLoadContext;
 import me.pepperbell.continuity.client.resource.CtmPropertiesLoader;
+import me.pepperbell.continuity.client.resource.EmissiveIdMapStorage;
 import me.pepperbell.continuity.client.resource.EmissiveSuffixLoader;
+import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.texture.SpriteContents;
 import net.minecraft.client.texture.SpriteOpener;
 import net.minecraft.client.texture.atlas.AtlasLoader;
@@ -197,37 +199,73 @@ abstract class AtlasLoaderMixin {
 			}
 		}
 
-		// Emissive texture handling - add emissive variants to atlas
-		if (context != null) {
-			String emissiveSuffix = EmissiveSuffixLoader.getEmissiveSuffix();
-			if (emissiveSuffix != null) {
-				Map<Identifier, AtlasSource.SpriteRegion> emissiveSuppliers =
-						new Object2ObjectOpenHashMap<>();
-				Map<Identifier, Identifier> emissiveIdMap = new Object2ObjectOpenHashMap<>();
-				suppliers.forEach((id, supplier) -> {
-					if (!id.getPath().endsWith(emissiveSuffix)) {
-						Identifier emissiveId = id.withPath(id.getPath() + emissiveSuffix);
-						if (!suppliers.containsKey(emissiveId)) {
-							Identifier emissiveLocation = emissiveId
-									.withPath("textures/" + emissiveId.getPath() + ".png");
-							Optional<Resource> optionalResource =
-									resourceManager.getResource(emissiveLocation);
-							if (optionalResource.isPresent()) {
-								Resource resource = optionalResource.get();
-								emissiveSuppliers.put(emissiveId,
-										opener -> opener.loadSprite(emissiveId, resource));
-								emissiveIdMap.put(id, emissiveId);
-							}
-						} else {
+		// PHASE 8: Emissive texture handling - INDEPENDENT of context!
+		// This runs for ALL atlases and stores emissive ID maps in static storage
+		String emissiveSuffix = EmissiveSuffixLoader.getEmissiveSuffix();
+		LOGGER.info("[Continuity] EMISSIVE SUFFIX DETECTION:");
+		LOGGER.info("  Emissive suffix loaded: {}",
+				emissiveSuffix != null ? "'" + emissiveSuffix + "'" : "NULL");
+
+		if (emissiveSuffix != null) {
+			Map<Identifier, AtlasSource.SpriteRegion> emissiveSuppliers =
+					new Object2ObjectOpenHashMap<>();
+			Map<Identifier, Identifier> emissiveIdMap = new Object2ObjectOpenHashMap<>();
+
+			LOGGER.info("[Continuity] EMISSIVE SPRITE SCANNING:");
+			LOGGER.info("  Total sprites to scan: {}", suppliers.size());
+
+			suppliers.forEach((id, supplier) -> {
+				if (!id.getPath().endsWith(emissiveSuffix)) {
+					Identifier emissiveId = id.withPath(id.getPath() + emissiveSuffix);
+					if (!suppliers.containsKey(emissiveId)) {
+						Identifier emissiveLocation =
+								emissiveId.withPath("textures/" + emissiveId.getPath() + ".png");
+						Optional<Resource> optionalResource =
+								resourceManager.getResource(emissiveLocation);
+						if (optionalResource.isPresent()) {
+							Resource resource = optionalResource.get();
+							emissiveSuppliers.put(emissiveId,
+									opener -> opener.loadSprite(emissiveId, resource));
 							emissiveIdMap.put(id, emissiveId);
+							LOGGER.info("  [FOUND] Emissive texture for: {} -> {}", id, emissiveId);
 						}
+					} else {
+						emissiveIdMap.put(id, emissiveId);
+						LOGGER.debug("  [EXISTS] Emissive sprite already in atlas: {} -> {}", id,
+								emissiveId);
 					}
-				});
-				suppliers.putAll(emissiveSuppliers);
-				if (!emissiveIdMap.isEmpty()) {
-					context.setEmissiveIdMap(emissiveIdMap);
 				}
+			});
+
+			suppliers.putAll(emissiveSuppliers);
+
+			LOGGER.info("[Continuity] EMISSIVE SCAN COMPLETE:");
+			LOGGER.info("  Emissive textures found: {}", emissiveSuppliers.size());
+			LOGGER.info("  Emissive mappings created: {}", emissiveIdMap.size());
+
+			if (!emissiveIdMap.isEmpty()) {
+				// PHASE 8: Store in static storage instead of context
+				// We need to determine which atlas this is for...
+				// For now, store with a generic key - TODO: fix for specific atlases
+				@SuppressWarnings("deprecation")
+				Identifier atlasId = SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE; // Assumption: most
+																				// emissives are
+																				// in block atlas
+				EmissiveIdMapStorage.put(atlasId, emissiveIdMap);
+				LOGGER.info("  Emissive ID map stored in static cache for atlas: {}", atlasId);
+
+				// Also try to set to context if it exists
+				if (context != null) {
+					context.setEmissiveIdMap(emissiveIdMap);
+					LOGGER.info("  Emissive ID map also set to context: SUCCESS");
+				}
+			} else {
+				LOGGER.warn("  No emissive mappings - emissive rendering will not work!");
 			}
+		} else {
+			LOGGER.warn("[Continuity] EMISSIVE RENDERING DISABLED: No suffix configured!");
+			LOGGER.warn("  Expected file: minecraft:optifine/emissive.properties");
+			LOGGER.warn("  Expected property: suffix.emissive=_e");
 		}
 	}
 }

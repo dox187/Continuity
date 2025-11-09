@@ -3,6 +3,8 @@ package me.pepperbell.continuity.client.model;
 import java.util.function.Predicate;
 
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import me.pepperbell.continuity.api.client.EmissiveSpriteApi;
 import me.pepperbell.continuity.client.config.ContinuityConfig;
@@ -25,28 +27,36 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.BlockRenderView;
 
 public class EmissiveBlockStateModel extends WrapperBlockStateModel {
+	private static final Logger LOGGER = LoggerFactory.getLogger("Continuity/EmissiveModel");
+
 	public EmissiveBlockStateModel(BlockStateModel wrapped) {
 		super(wrapped);
 	}
 
 	@Override
-	public void emitQuads(QuadEmitter emitter, BlockRenderView blockView, BlockPos pos, BlockState state, Random random, Predicate<@Nullable Direction> cullTest) {
+	public void emitQuads(QuadEmitter emitter, BlockRenderView blockView, BlockPos pos,
+			BlockState state, Random random, Predicate<@Nullable Direction> cullTest) {
 		if (!ContinuityConfig.INSTANCE.emissiveTextures.get()) {
+			LOGGER.debug("[Continuity] EMISSIVE RENDERING SKIPPED: Config disabled");
 			super.emitQuads(emitter, blockView, pos, state, random, cullTest);
 			return;
 		}
 
 		ModelObjectsContainer container = ModelObjectsContainer.get();
 		if (!container.featureStates.getEmissiveTexturesState().isEnabled()) {
+			LOGGER.debug("[Continuity] EMISSIVE RENDERING SKIPPED: Feature state disabled");
 			super.emitQuads(emitter, blockView, pos, state, random, cullTest);
 			return;
 		}
 
 		EmissiveQuadTransform quadTransform = container.emissiveQuadTransform;
 		if (quadTransform.isActive()) {
+			LOGGER.debug("[Continuity] EMISSIVE RENDERING SKIPPED: QuadTransform already active");
 			super.emitQuads(emitter, blockView, pos, state, random, cullTest);
 			return;
 		}
+
+		LOGGER.debug("[Continuity] EMISSIVE RENDERING ACTIVE for block: {}", state.getBlock());
 
 		MutableMesh mutableMesh = container.mutableMesh;
 		quadTransform.prepare(mutableMesh.emitter(), state, cullTest);
@@ -62,7 +72,8 @@ public class EmissiveBlockStateModel extends WrapperBlockStateModel {
 
 	@Override
 	@Nullable
-	public Object createGeometryKey(BlockRenderView blockView, BlockPos pos, BlockState state, Random random) {
+	public Object createGeometryKey(BlockRenderView blockView, BlockPos pos, BlockState state,
+			Random random) {
 		if (!ContinuityConfig.INSTANCE.emissiveTextures.get()) {
 			return super.createGeometryKey(blockView, pos, state, random);
 		}
@@ -105,26 +116,40 @@ public class EmissiveBlockStateModel extends WrapperBlockStateModel {
 
 			Sprite sprite = RenderUtil.getSpriteFinder().find(quad);
 			Sprite emissiveSprite = EmissiveSpriteApi.get().getEmissiveSprite(sprite);
+
+			LOGGER.debug("[Continuity] EMISSIVE QUAD TRANSFORM:");
+			LOGGER.debug("  Sprite: {}", sprite.getContents().getId());
+			LOGGER.debug("  Has emissive sprite: {}", emissiveSprite != null);
+
 			if (emissiveSprite != null) {
+				LOGGER.info("[Continuity] EMISSIVE SPRITE FOUND AND PROCESSING:");
+				LOGGER.info("  Base sprite: {}", sprite.getContents().getId());
+				LOGGER.info("  Emissive sprite: {}", emissiveSprite.getContents().getId());
+
 				emitter.copyFrom(quad);
 				emitter.emissive(true).diffuseShade(false).ambientOcclusion(TriState.FALSE);
 
 				BlockRenderLayer renderLayer = quad.renderLayer();
 				if (renderLayer == null) {
 					if (calculateDefaultLayer) {
-						isDefaultLayerSolid = RenderLayers.getBlockLayer(state) == BlockRenderLayer.SOLID;
+						isDefaultLayerSolid =
+								RenderLayers.getBlockLayer(state) == BlockRenderLayer.SOLID;
 						calculateDefaultLayer = false;
 					}
 
 					if (isDefaultLayerSolid) {
 						emitter.renderLayer(BlockRenderLayer.CUTOUT_MIPPED);
+						LOGGER.info(
+								"  Setting render layer: CUTOUT_MIPPED (was null, default solid)");
 					}
 				} else if (renderLayer == BlockRenderLayer.SOLID) {
 					emitter.renderLayer(BlockRenderLayer.CUTOUT_MIPPED);
+					LOGGER.info("  Setting render layer: CUTOUT_MIPPED (was SOLID)");
 				}
 
 				QuadUtil.interpolate(emitter, sprite, emissiveSprite);
 				emitter.emit();
+				LOGGER.info("  Emissive quad emitted successfully!");
 			}
 			return true;
 		}
@@ -133,7 +158,8 @@ public class EmissiveBlockStateModel extends WrapperBlockStateModel {
 			return active;
 		}
 
-		public void prepare(QuadEmitter emitter, BlockState state, Predicate<@Nullable Direction> cullTest) {
+		public void prepare(QuadEmitter emitter, BlockState state,
+				Predicate<@Nullable Direction> cullTest) {
 			this.emitter = emitter;
 			this.state = state;
 			this.cullTest = cullTest;
